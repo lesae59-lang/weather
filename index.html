@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Погода: Минск и Брест</title>
+<meta name="theme-color" content="#0b1020">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#0b1020;--fg:#fff;--mut:rgba(255,255,255,.7)}
+:root[data-theme="dark"],:root:not([data-theme="light"]){--bg:#0b1020;--fg:#fff;--mut:rgba(255,255,255,.7)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b1020;--fg:#fff;--mut:rgba(255,255,255,.7)}}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh}
+header{padding:28px 20px 8px;max-width:1100px;margin:0 auto;display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap}
+h1{margin:0;font-size:clamp(26px,5vw,40px);letter-spacing:-.02em}
+.sub{color:var(--mut);font-size:14px}
+.grid{max-width:1100px;margin:0 auto;padding:16px 20px 40px;display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px}
+.card{position:relative;height:380px;border-radius:26px;overflow:hidden;box-shadow:0 14px 40px rgba(0,0,0,.45);isolation:isolate;transition:transform .3s}
+.card:hover{transform:translateY(-4px)}
+.scene{position:absolute;inset:0;z-index:-1;overflow:hidden;transition:background .6s}
+.c-clear{background:linear-gradient(#2e9bff,#8fd8ff)}
+.c-partly{background:linear-gradient(#4a7be0,#7fc8e8)}
+.c-cloudy{background:linear-gradient(#59657f,#8b96ad)}
+.c-rain{background:linear-gradient(#2b3750,#4c5c78)}
+.c-storm{background:linear-gradient(#15171c,#3a3f4b)}
+.c-snow{background:linear-gradient(#7f9bb5,#dbe5ef)}
+.c-fog{background:linear-gradient(#7d8a96,#c4cacf)}
+.sun{position:absolute;top:8%;right:10%;width:90px;height:90px;border-radius:50%;background:radial-gradient(circle,#fff8c4 0,#ffd54a 55%,#ffb300 100%);box-shadow:0 0 60px 25px rgba(255,210,70,.6);animation:pulse 4s ease-in-out infinite}
+.sun::before{content:"";position:absolute;inset:-30px;border-radius:50%;background:repeating-conic-gradient(rgba(255,220,90,.55) 0 6deg,transparent 6deg 24deg);-webkit-mask:radial-gradient(circle,transparent 48px,#000 49px,#000 70%,transparent 71%);mask:radial-gradient(circle,transparent 48px,#000 49px,#000 70%,transparent 71%);animation:spin 30s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{50%{transform:scale(1.06)}}
+.cloud{position:absolute;left:-45%;width:130px;height:42px;border-radius:50px;background:rgba(255,255,255,.88);transform:scale(var(--s,1));animation:drift linear infinite;filter:drop-shadow(0 6px 8px rgba(0,0,0,.12))}
+.cloud::before,.cloud::after{content:"";position:absolute;background:inherit;border-radius:50%}
+.cloud::before{width:56px;height:56px;left:18px;top:-26px}
+.cloud::after{width:42px;height:42px;left:62px;top:-18px}
+.c-rain .cloud,.c-storm .cloud{background:rgba(88,98,120,.95)}
+.c-storm .cloud{background:rgba(48,52,62,.95)}
+.c-cloudy .cloud{background:rgba(225,230,240,.9)}
+@keyframes drift{to{left:115%}}
+.drop{position:absolute;top:-20px;width:2px;height:16px;background:linear-gradient(transparent,rgba(190,220,255,.9));animation:fall linear infinite}
+@keyframes fall{to{transform:translateY(420px)}}
+.flake{position:absolute;top:-10px;width:7px;height:7px;border-radius:50%;background:#fff;opacity:.9;animation:snowfall linear infinite}
+@keyframes snowfall{50%{margin-left:14px}to{transform:translateY(420px);margin-left:-8px}}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;animation:flash 6s infinite}
+@keyframes flash{0%,90%,94%,100%{opacity:0}91%{opacity:.75}92%{opacity:.1}93%{opacity:.6}}
+.fog{position:absolute;left:-20%;width:140%;height:70px;border-radius:50%;background:rgba(255,255,255,.35);filter:blur(18px);animation:fogm 14s ease-in-out infinite alternate}
+@keyframes fogm{to{transform:translateX(12%)}}
+.info{position:absolute;inset:0;padding:22px;display:flex;flex-direction:column;justify-content:flex-end;text-shadow:0 2px 12px rgba(0,0,0,.35);background:linear-gradient(transparent 45%,rgba(0,0,0,.3))}
+.city{font-size:22px;font-weight:700}
+.temp{font-size:72px;font-weight:200;line-height:1;margin:2px 0}
+.cond{font-size:18px;font-weight:600}
+.meta{color:var(--mut);font-size:14px;margin-top:6px}
+.note{font-size:14px;margin-top:8px;opacity:.95}
+.edit{position:absolute;top:14px;left:14px;border:0;background:rgba(0,0,0,.4);color:#fff;border-radius:20px;padding:8px 14px;font-size:14px;cursor:pointer;backdrop-filter:blur(6px)}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:20px;z-index:50}
+.modal.on{display:flex}
+.box{background:#1a2138;border-radius:20px;padding:22px;width:100%;max-width:400px;display:grid;gap:10px}
+.box h3{margin:0 0 4px}
+.box label{font-size:13px;color:var(--mut);display:grid;gap:4px}
+.box input,.box select{padding:10px;border-radius:10px;border:1px solid #3a4468;background:#0f1428;color:#fff;font-size:15px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btns{display:flex;gap:10px;margin-top:6px}
+.btns button{flex:1;padding:12px;border-radius:12px;border:0;font-size:15px;cursor:pointer}
+.save{background:#3b82f6;color:#fff}.cancel{background:#2b3452;color:#fff}
+.badge{cursor:pointer;font-size:12px;padding:5px 10px;border-radius:20px;background:rgba(255,255,255,.12)}
+.card{cursor:pointer}
+.full{position:fixed;inset:0;z-index:40;display:none;isolation:isolate;background:var(--bg);overflow:hidden}
+.full.on{display:block;animation:zin .35s}
+@keyframes zin{from{opacity:0;transform:scale(.96)}}
+.full .scene{position:absolute;inset:0;z-index:-1}
+.full .sun{zoom:1.9;top:16%}
+.full .drop{height:26px;animation-name:fallf}
+.full .flake{animation-name:snowf}
+@keyframes fallf{to{transform:translateY(115vh)}}
+@keyframes snowf{50%{margin-left:30px}to{transform:translateY(115vh);margin-left:-20px}}
+.full .back,.full .edit{position:absolute;top:calc(16px + env(safe-area-inset-top,0px));border:0;background:rgba(0,0,0,.4);color:#fff;border-radius:22px;padding:10px 18px;font-size:15px;cursor:pointer;backdrop-filter:blur(6px);z-index:2}
+.full .back{left:16px}
+.full .edit{left:auto;right:16px}
+.full .fi{position:absolute;left:0;right:0;bottom:0;padding:32px 28px calc(40px + env(safe-area-inset-bottom,0px));text-shadow:0 2px 14px rgba(0,0,0,.4)}
+.fcity{font-size:clamp(28px,6vw,48px);font-weight:700}
+.ftemp{font-size:clamp(96px,22vw,200px);font-weight:200;line-height:1}
+.fcond{font-size:clamp(22px,4vw,34px);font-weight:600}
+.fgrid{display:flex;gap:32px;margin-top:14px;flex-wrap:wrap;font-size:18px}
+.fgrid b{display:block;font-size:13px;color:var(--mut);font-weight:500}
+.fnote{margin-top:14px;font-size:20px}
+.card{animation:up .6s both}
+@keyframes up{from{opacity:0;transform:translateY(24px)}}
+.add{height:380px;border:2px dashed rgba(255,255,255,.3);border-radius:26px;background:transparent;color:var(--mut);font-size:18px;cursor:pointer;transition:background .3s}
+.add:hover{background:rgba(255,255,255,.08)}
+#clock{text-transform:capitalize}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>Погода: Минск и Брест</h1><div class="sub" id="clock"></div><div class="sub" id="sub">Ожидаемая погода, заданная вручную</div></div>
+  <span class="badge" id="mode">Режим просмотра</span>
+</header>
+<main class="grid" id="grid"></main>
+<div class="full" id="full"></div>
+
+<div class="modal" id="modal"><div class="box">
+  <h3>Изменить погоду</h3>
+  <label>Локация<input id="f-city"></label>
+  <label>Состояние<select id="f-cond"></select></label>
+  <div class="row">
+    <label>Днём, °C<input id="f-temp" type="number"></label>
+    <label>Ночью, °C<input id="f-night" type="number"></label>
+  </div>
+  <div class="row"><label>Завтра: состояние<select id="f-tcond"></select></label><label>Завтра, °C<input id="f-ttemp" type="number"></label></div>
+  <label>Ветер<input id="f-wind" placeholder="например, 5 м/с, северный"></label>
+  <label>Заметка<input id="f-note" placeholder="например, возьмите зонт"></label>
+  <div class="btns"><button class="cancel" id="cancel">Отмена</button><button class="save" id="save">Сохранить</button></div>
+  <button id="del" style="padding:10px;border:0;border-radius:12px;background:transparent;color:#ff8a8a;cursor:pointer">Удалить локацию</button>
+</div></div>
+
+<script type="application/json" id="weather-data">{"cities":[{"city":"Минск","cond":"cloudy","temp":8,"night":2,"wind":"4 м/с, западный","note":"Пасмурно, без осадков","updated":""},{"city":"Брест — Центр","cond":"rain","temp":10,"night":4,"wind":"5 м/с, юго-западный","note":"Возьмите зонт","updated":""},{"city":"Брест — Восток","cond":"rain","temp":10,"night":3,"wind":"5 м/с, западный","note":"Небольшой дождь","updated":""},{"city":"Брест — Южный","cond":"partly","temp":11,"night":5,"wind":"3 м/с, южный","note":"Облачно с прояснениями","updated":""},{"city":"Брест — Киевка","cond":"fog","temp":9,"night":3,"wind":"1 м/с, штиль","note":"Утром туман","updated":""}]}</script>
+<script>
+const ICON = {clear:"☀️",partly:"⛅",cloudy:"☁️",rain:"🌧️",storm:"⛈️",snow:"❄️",fog:"🌫️"};
+const tm = d => d.tcond ? `${ICON[d.tcond]||""} ${d.ttemp}°` : "—";
+const CONDS = {clear:"Ясно",partly:"Переменная облачность",cloudy:"Пасмурно",rain:"Дождь",storm:"Гроза",snow:"Снег",fog:"Туман"};
+let data = JSON.parse(document.getElementById("weather-data").textContent);
+let canEdit = false, editing = -1, newItem = false;
+const rnd = Math.random;
+
+function scene(c,k=1){
+  let h = "";
+  if (c==="clear"||c==="partly") h += '<div class="sun"></div>';
+  const n = {partly:2,cloudy:4,rain:4,storm:5,snow:3}[c]||0;
+  for (let i=0;i<n;i++) h += `<div class="cloud" style="top:${4+i*9}%;--s:${(.8+(i%3)*.35).toFixed(2)};animation-duration:${38+i*13}s;animation-delay:-${i*11}s"></div>`;
+  if (c==="rain"||c==="storm") for (let i=0;i<45*k;i++) h += `<i class="drop" style="left:${(rnd()*100).toFixed(1)}%;animation-delay:-${(rnd()*1.2).toFixed(2)}s;animation-duration:${(.5+rnd()*.4).toFixed(2)}s"></i>`;
+  if (c==="snow") for (let i=0;i<40*k;i++) h += `<i class="flake" style="left:${(rnd()*100).toFixed(1)}%;animation-delay:-${(rnd()*8).toFixed(1)}s;animation-duration:${(5+rnd()*5).toFixed(1)}s;transform:scale(${(.6+rnd()).toFixed(1)})"></i>`;
+  if (c==="storm") h += '<div class="flash"></div>';
+  if (c==="fog") for (let i=0;i<4;i++) h += `<div class="fog" style="top:${15+i*20}%;animation-delay:-${i*3}s"></div>`;
+  return h;
+}
+const esc = s => String(s??"").replace(/[&<>"]/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+
+function render(){
+  document.getElementById("grid").innerHTML = data.cities.map((d,i)=>`
+    <article class="card" data-i="${i}" style="animation-delay:${i*.08}s">
+      <div class="scene c-${d.cond}">${scene(d.cond)}</div>
+      ${canEdit?`<button class="edit" data-i="${i}">✎ Изменить</button>`:""}
+      <div class="info">
+        <div class="city">${esc(d.city)}</div>
+        <div class="temp">${esc(d.temp)}°</div>
+        <div class="cond">${ICON[d.cond]||""} ${CONDS[d.cond]||""}</div>
+        <div class="meta">Завтра: ${tm(d)}</div>
+        <div class="meta">Ночью ${esc(d.night)}° · Ветер: ${esc(d.wind)}</div>
+        <div class="note">${esc(d.note)}</div>
+      </div>
+    </article>`).join("") + (canEdit ? '<button class="add" id="add">＋ Добавить локацию</button>' : "");
+  document.getElementById("sub").textContent = "Ожидаемая погода, заданная вручную" + (data.updated ? " · обновлено " + data.updated : "");
+  document.getElementById("mode").textContent = canEdit ? "✎ Режим редактирования" : "🔒 Войти для редактирования";
+}
+
+document.getElementById("f-tcond").innerHTML = document.getElementById("f-cond").innerHTML = Object.entries(CONDS).map(([k,v])=>`<option value="${k}">${v}</option>`).join("");
+document.addEventListener("click", e=>{
+  const b = e.target.closest(".edit"); if(!b){ if(e.target.closest(".back")) closeFull(); else if(e.target.closest(".add")){ data.cities.push({city:"Новая локация",cond:"clear",temp:10,night:5,wind:"2 м/с",note:"",tcond:"clear",ttemp:10}); render(); openEditor(data.cities.length-1,true); } else { const c = e.target.closest(".card"); if(c) openFull(+c.dataset.i); } return; }
+  openEditor(+b.dataset.i);
+});
+const f = id => document.getElementById("f-"+id);
+function openEditor(i, isNew=false){
+  editing = i; newItem = isNew; const d = data.cities[i];
+  f("city").value=d.city; f("cond").value=d.cond; f("temp").value=d.temp; f("night").value=d.night;
+  f("tcond").value=d.tcond||d.cond; f("ttemp").value=d.ttemp ?? d.temp; f("wind").value=d.wind; f("note").value=d.note;
+  document.getElementById("del").style.display = isNew ? "none" : "";
+  document.getElementById("modal").classList.add("on");
+}
+document.getElementById("del").onclick = async () => {
+  if (!confirm("Удалить локацию «" + data.cities[editing].city + "»?")) return;
+  const old = data.cities.splice(editing,1)[0]; data.updated = new Date().toLocaleString("ru-RU");
+  try { await ghSave(data); } catch(err){ data.cities.splice(editing,0,old); alert("Не удалось сохранить: " + err.message); return; }
+  document.getElementById("modal").classList.remove("on"); closeFull(); render();
+};
+document.getElementById("cancel").onclick = () => { document.getElementById("modal").classList.remove("on"); if (newItem) { data.cities.pop(); newItem = false; render(); } };
+document.getElementById("save").onclick = async () => {
+  const d = data.cities[editing];
+  Object.assign(d, {tcond:f("tcond").value, ttemp:+f("ttemp").value, city:f("city").value, cond:f("cond").value, temp:+f("temp").value, night:+f("night").value, wind:f("wind").value, note:f("note").value});
+  data.updated = new Date().toLocaleString("ru-RU");
+  document.getElementById("save").textContent = "Сохраняю…";
+  try { await ghSave(data); }
+  catch(err){ document.getElementById("save").textContent = "Сохранить"; alert("Не удалось сохранить: " + err.message); return; }
+  document.getElementById("modal").classList.remove("on");
+  document.getElementById("save").textContent = "Сохранить";
+  newItem = false; render(); if (full.classList.contains("on")) openFull(editing);
+};
+
+render();
+const full = document.getElementById("full");
+function openFull(i){
+  const d = data.cities[i];
+  full.innerHTML = `<div class="scene c-${d.cond}">${scene(d.cond,6)}</div><button class="back">← Назад</button>${canEdit?`<button class="edit" data-i="${i}">✎ Изменить</button>`:""}<div class="fi"><div class="fcity">${esc(d.city)}</div><div class="ftemp">${esc(d.temp)}°</div><div class="fcond">${ICON[d.cond]||""} ${CONDS[d.cond]||""}</div><div class="fgrid"><div><b>Ночью</b>${esc(d.night)}°</div><div><b>Ветер</b>${esc(d.wind)}</div><div><b>Завтра</b>${tm(d)}</div></div><div class="fnote">${esc(d.note)}</div></div>`;
+  full.classList.add("on"); document.body.style.overflow = "hidden";
+}
+function closeFull(){ full.classList.remove("on"); full.innerHTML = ""; document.body.style.overflow = ""; }
+document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeFull(); });
+const TOKEN_KEY = "gh_token";
+const tok = () => { try { return localStorage.getItem(TOKEN_KEY); } catch(e){ return null; } };
+const repoPath = () => location.hostname.split(".")[0] + "/" + location.pathname.split("/")[1];
+async function ghSave(obj){
+  const url = "https://api.github.com/repos/" + repoPath() + "/contents/weather.json";
+  const h = {Authorization:"Bearer " + tok(), Accept:"application/vnd.github+json"};
+  const cur = await fetch(url, {headers:h});
+  if (!cur.ok) throw new Error("GitHub " + cur.status + ": проверьте токен и название репозитория");
+  const sha = (await cur.json()).sha;
+  const content = btoa(unescape(encodeURIComponent(JSON.stringify(obj, null, 2))));
+  const r = await fetch(url, {method:"PUT", headers:h, body:JSON.stringify({message:"Обновление погоды", content, sha})});
+  if (!r.ok) throw new Error("GitHub " + r.status + ": у токена нет права записи");
+}
+document.getElementById("mode").onclick = () => {
+  if (canEdit) {
+    if (confirm("Выйти из режима редактирования?")) { try{localStorage.removeItem(TOKEN_KEY);}catch(e){} canEdit = false; render(); }
+  } else {
+    const t = prompt("Вставьте токен GitHub для редактирования:");
+    if (t) { try{localStorage.setItem(TOKEN_KEY, t.trim());}catch(e){} canEdit = true; render(); }
+  }
+};
+async function load(){
+  try {
+    const r = await fetch("weather.json?t=" + Date.now(), {cache:"no-store"});
+    if (!r.ok) return;
+    const j = await r.json();
+    if (JSON.stringify(j) !== JSON.stringify(data) && !full.classList.contains("on") && !document.getElementById("modal").classList.contains("on")) { data = j; render(); }
+  } catch(e){}
+}
+function tick(){ document.getElementById("clock").textContent = new Date().toLocaleString("ru-RU",{timeZone:"Europe/Minsk",weekday:"long",day:"numeric",month:"long",hour:"2-digit",minute:"2-digit"}); }
+tick(); setInterval(tick, 30000);
+canEdit = !!tok();
+render();
+load(); setInterval(load, 60000);
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body>
+</html>
