@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://lesae59-lang.github.io/weather/sitemap.xml
