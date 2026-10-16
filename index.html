@@ -125,12 +125,19 @@ h1{margin:0;font-size:clamp(26px,5vw,40px);letter-spacing:-.02em}
 .tabs button.on{background:#3b82f6}
 .box{max-height:92vh;overflow:auto}
 .full .snd{position:absolute;right:20px;bottom:calc(24px + env(safe-area-inset-bottom,0px));width:48px;height:48px;border-radius:50%;border:0;background:rgba(0,0,0,.4);color:#fff;font-size:22px;cursor:pointer;backdrop-filter:blur(6px);z-index:2}
+.full .fi{top:0;display:flex;flex-direction:column;align-items:center;justify-content:safe center;text-align:center;overflow-y:auto;padding:76px 16px calc(84px + env(safe-area-inset-bottom,0px))}
+.full .fgrid,.full .chips{justify-content:center}
+.hours{display:flex;gap:10px;overflow-x:auto;width:min(900px,100%);padding:14px 4px 10px;margin-top:18px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;cursor:grab;text-shadow:none}
+.h{flex:0 0 78px;display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 6px;border-radius:18px;background:rgba(255,255,255,.16);backdrop-filter:blur(10px);scroll-snap-align:start;border:1px solid rgba(255,255,255,.12)}
+.h:first-child{background:rgba(255,255,255,.3)}
+.h b{font-size:14px}.h small{font-size:11px;color:var(--mut)}
+.h .hi{font-size:26px}.h .ht{font-size:20px;font-weight:600}.h .hp{font-size:12px;min-height:16px;color:var(--mut)}
 </style>
 </head>
 <body>
 <header>
   <div><h1>Погода: Минск и Брест</h1><div class="sub" id="clock"></div><div class="sub" id="summary"></div><div class="sub" id="sub">Ожидаемая погода, заданная вручную</div></div>
-  <div style="display:flex;gap:8px;flex-wrap:wrap"><span class="badge" id="timeb">⏱ Время</span><span class="badge" id="install">⬇ Скачать приложение</span><span class="badge" id="mode">Режим просмотра</span></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="badge" href="dispatcher.html" style="text-decoration:none;color:inherit">🌧 Диспетчер дождя</a><span class="badge" id="timeb">⏱ Время</span><span class="badge" id="install">⬇ Скачать приложение</span><span class="badge" id="mode">Режим просмотра</span></div>
 </header>
 <main class="grid" id="grid"></main>
 <div class="full" id="full"></div>
@@ -159,6 +166,8 @@ h1{margin:0;font-size:clamp(26px,5vw,40px);letter-spacing:-.02em}
 <div class="modal" id="modal"><div class="box">
   <h3>Изменить погоду</h3>
   <label>Локация<input id="f-city"></label>
+  <label>Источник данных<select id="f-auto"><option value="1">Автоматически (Open-Meteo)</option><option value="0">Вручную</option></select></label>
+  <div class="row"><label>Широта<input id="f-lat" type="number" step="0.0001"></label><label>Долгота<input id="f-lon" type="number" step="0.0001"></label></div>
   <label>Состояние<select id="f-cond"></select></label>
   <div class="row">
     <label>Днём, °C<input id="f-temp" type="number"></label>
@@ -172,6 +181,7 @@ h1{margin:0;font-size:clamp(26px,5vw,40px);letter-spacing:-.02em}
 </div></div>
 
 <footer style="max-width:1100px;margin:0 auto;padding:0 20px 40px;color:var(--mut);font-size:13px;line-height:1.6"><h2 style="font-size:15px;margin:0 0 6px">Погода в Минске и Бресте по районам</h2><p>Ожидаемая погода в Минске и по районам Бреста: Центр, Восток, Южный, Киевка. Температура днём и ночью, ветер, прогноз на завтра. Данные вводятся вручную и обновляются автоматически. Сайт можно установить как приложение на ПК, Android и iPhone.</p></footer>
+<script src="core.js"></script>
 <script type="application/json" id="weather-data">{"cities":[{"city":"Минск","cond":"cloudy","temp":8,"night":2,"wind":"4 м/с, западный","note":"Пасмурно, без осадков","updated":""},{"city":"Брест — Центр","cond":"rain","temp":10,"night":4,"wind":"5 м/с, юго-западный","note":"Возьмите зонт","updated":""},{"city":"Брест — Восток","cond":"rain","temp":10,"night":3,"wind":"5 м/с, западный","note":"Небольшой дождь","updated":""},{"city":"Брест — Южный","cond":"partly","temp":11,"night":5,"wind":"3 м/с, южный","note":"Облачно с прояснениями","updated":""},{"city":"Брест — Киевка","cond":"fog","temp":9,"night":3,"wind":"1 м/с, штиль","note":"Утром туман","updated":""}]}</script>
 <script>
 const ICON = {clear:"☀️",partly:"⛅",cloudy:"☁️",rain:"🌧️",storm:"⛈️",snow:"❄️",fog:"🌫️"};
@@ -211,6 +221,19 @@ function startSound(c,w){
   const wg = noise("lowpass",450,Math.min(.25,.03+w*.02));
   if (w>0) { const lfo = ac.createOscillator(), lg = ac.createGain(); lfo.frequency.value = .15; lg.gain.value = Math.min(.1,.01+w*.008); lfo.connect(lg); lg.connect(wg.gain); lfo.start(); snodes.push(lfo,lg); }
 }
+const LIVE = {}; let liveAt = null, lastFile = null, pendingUntil = 0;
+async function refreshLive(){
+  await Promise.all(data.cities.filter(d => d.auto!==false).map(async d => {
+    try { const [la,lo] = OM.coords(d); const w = await OM.get(la,lo); LIVE[d.city] = w; OM.apply(d,w); } catch(e){}
+  }));
+  liveAt = new Date(); render();
+  if (full.classList.contains("on") && !document.getElementById("modal").classList.contains("on")) openFull(curFull);
+}
+function hourly(d){
+  const w = LIVE[d.city];
+  if (!w) return '<div class="sub" style="margin-top:18px">' + (d.auto===false ? "Почасовой прогноз доступен для автоматических локаций" : "Загружаю почасовой прогноз…") + "</div>";
+  return '<div class="hours">' + w.hours.map((h,k) => `<div class="h"><b>${k===0?"Сейчас":h.t.slice(11,16)}</b>${h.t.slice(11,13)==="00"?`<small>${h.t.slice(8,10)}.${h.t.slice(5,7)}</small>`:""}<span class="hi">${ICON[OM.cond(h.c)]}</span><span class="ht">${Math.round(h.temp)}°</span><span class="hp">${h.p!=null?"💧 "+h.p+"%":""}</span></div>`).join("") + "</div>";
+}
 const CONDS = {clear:"Ясно",partly:"Переменная облачность",cloudy:"Пасмурно",rain:"Дождь",storm:"Гроза",snow:"Снег",fog:"Туман"};
 let data = JSON.parse(document.getElementById("weather-data").textContent);
 let canEdit = false, editing = -1, newItem = false;
@@ -247,7 +270,7 @@ function render(){
         <div class="note">${esc(d.note)}</div><div class="chips">${tips(d)}</div>
       </div>
     </article>`).join("") + (canEdit ? '<button class="add" id="add">＋ Добавить локацию</button>' : "");
-  document.getElementById("sub").textContent = "Ожидаемая погода, заданная вручную" + (data.updated ? " · обновлено " + data.updated : "");
+  document.getElementById("sub").textContent = "Данные: Open-Meteo, обновляются каждый час" + (liveAt ? " · обновлено " + liveAt.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}) : "");
   if (data.cities.length) {
     const warm = data.cities.reduce((a,b)=>b.temp>a.temp?b:a), wetC = data.cities.filter(x=>wet(x.cond)||x.cond==="snow").map(x=>x.city);
     document.getElementById("summary").textContent = "Теплее всего: " + warm.city + " (" + warm.temp + "°) · Осадки: " + (wetC.length ? wetC.join(", ") : "нигде");
@@ -257,13 +280,13 @@ function render(){
 
 document.getElementById("f-tcond").innerHTML = document.getElementById("f-cond").innerHTML = Object.entries(CONDS).map(([k,v])=>`<option value="${k}">${v}</option>`).join("");
 document.addEventListener("click", e=>{
-  const b = e.target.closest(".edit"); if(!b){ if(e.target.closest(".back")) closeFull(); else if(e.target.closest(".snd")){ const c = data.cities[curFull]; soundOn = !soundOn; soundOn ? startSound(c.cond, wspd(c)) : stopSound(); e.target.closest(".snd").textContent = soundOn ? "🔊" : "🔇"; } else if(e.target.closest(".nav")){ const n = data.cities.length; openFull((curFull + (e.target.closest(".next") ? 1 : -1) + n) % n); } else if(e.target.closest(".add")){ data.cities.push({city:"Новая локация",cond:"clear",temp:10,night:5,wind:"2 м/с",note:"",tcond:"clear",ttemp:10}); render(); openEditor(data.cities.length-1,true); } else { const c = e.target.closest(".card"); if(c) openFull(+c.dataset.i); } return; }
+  const b = e.target.closest(".edit"); if(!b){ if(e.target.closest(".back")) closeFull(); else if(e.target.closest(".snd")){ const c = data.cities[curFull]; soundOn = !soundOn; soundOn ? startSound(c.cond, wspd(c)) : stopSound(); e.target.closest(".snd").textContent = soundOn ? "🔊" : "🔇"; } else if(e.target.closest(".nav")){ const n = data.cities.length; openFull((curFull + (e.target.closest(".next") ? 1 : -1) + n) % n); } else if(e.target.closest(".add")){ data.cities.push({city:"Новая локация",cond:"clear",temp:10,night:5,wind:"2 м/с",note:"",tcond:"clear",ttemp:10,auto:true,lat:52.0976,lon:23.7}); render(); openEditor(data.cities.length-1,true); } else { const c = e.target.closest(".card"); if(c) openFull(+c.dataset.i); } return; }
   openEditor(+b.dataset.i);
 });
 const f = id => document.getElementById("f-"+id);
 function openEditor(i, isNew=false){
   editing = i; newItem = isNew; const d = data.cities[i];
-  f("city").value=d.city; f("cond").value=d.cond; f("temp").value=d.temp; f("night").value=d.night;
+  f("city").value=d.city; f("auto").value = d.auto===false ? "0" : "1"; { const [la,lo] = OM.coords(d); f("lat").value = la; f("lon").value = lo; } f("cond").value=d.cond; f("temp").value=d.temp; f("night").value=d.night;
   f("tcond").value=d.tcond||d.cond; f("ttemp").value=d.ttemp ?? d.temp; f("wind").value=d.wind; f("note").value=d.note;
   document.getElementById("del").style.display = isNew ? "none" : "";
   document.getElementById("modal").classList.add("on");
@@ -272,26 +295,26 @@ document.getElementById("del").onclick = async () => {
   if (!confirm("Удалить локацию «" + data.cities[editing].city + "»?")) return;
   const old = data.cities.splice(editing,1)[0]; data.updated = new Date().toLocaleString("ru-RU");
   try { await ghSave(data); } catch(err){ data.cities.splice(editing,0,old); alert("Не удалось сохранить: " + err.message); return; }
-  document.getElementById("modal").classList.remove("on"); closeFull(); render();
+  pendingUntil = Date.now() + 180000; lastFile = null; document.getElementById("modal").classList.remove("on"); closeFull(); render();
 };
 document.getElementById("cancel").onclick = () => { document.getElementById("modal").classList.remove("on"); if (newItem) { data.cities.pop(); newItem = false; render(); } };
 document.getElementById("save").onclick = async () => {
   const d = data.cities[editing];
-  Object.assign(d, {tcond:f("tcond").value, ttemp:+f("ttemp").value, city:f("city").value, cond:f("cond").value, temp:+f("temp").value, night:+f("night").value, wind:f("wind").value, note:f("note").value});
+  Object.assign(d, {auto:f("auto").value==="1", lat:+f("lat").value, lon:+f("lon").value, tcond:f("tcond").value, ttemp:+f("ttemp").value, city:f("city").value, cond:f("cond").value, temp:+f("temp").value, night:+f("night").value, wind:f("wind").value, note:f("note").value});
   data.updated = new Date().toLocaleString("ru-RU");
   document.getElementById("save").textContent = "Сохраняю…";
   try { await ghSave(data); }
   catch(err){ document.getElementById("save").textContent = "Сохранить"; alert("Не удалось сохранить: " + err.message); return; }
   document.getElementById("modal").classList.remove("on");
   document.getElementById("save").textContent = "Сохранить";
-  newItem = false; render(); if (full.classList.contains("on")) openFull(editing);
+  newItem = false; pendingUntil = Date.now() + 180000; lastFile = null; refreshLive(); render(); if (full.classList.contains("on")) openFull(editing);
 };
 
 render();
 const full = document.getElementById("full");
 function openFull(i){
   const d = data.cities[i];
-  curFull = i; stopSound(); if (soundOn) startSound(d.cond, wspd(d)); full.innerHTML = `<div class="scene c-${d.cond}${isNight()?" night":""}">${scene(d.cond,6,wspd(d))}</div><button class="back">← Назад</button><button class="nav prev">‹</button><button class="nav next">›</button><button class="snd" title="Звук погоды">${soundOn?"🔊":"🔇"}</button>${canEdit?`<button class="edit" data-i="${i}">✎ Изменить</button>`:""}<div class="fi"><div class="fcity">${esc(d.city)}</div><div class="ftemp">${esc(d.temp)}°</div><div class="fcond">${ICON[d.cond]||""} ${CONDS[d.cond]||""}</div><div class="fgrid"><div><b>Ночью</b>${esc(d.night)}°</div><div><b>Ветер</b>${esc(d.wind)}</div><div><b>Завтра</b>${tm(d)}</div></div><div class="fnote">${esc(d.note)}</div><div class="chips">${tips(d)}</div></div>`;
+  curFull = i; stopSound(); if (soundOn) startSound(d.cond, wspd(d)); full.innerHTML = `<div class="scene c-${d.cond}${isNight()?" night":""}">${scene(d.cond,6,wspd(d))}</div><button class="back">← Назад</button><button class="nav prev">‹</button><button class="nav next">›</button><button class="snd" title="Звук погоды">${soundOn?"🔊":"🔇"}</button>${canEdit?`<button class="edit" data-i="${i}">✎ Изменить</button>`:""}<div class="fi"><div class="fcity">${esc(d.city)}</div><div class="ftemp">${esc(d.temp)}°</div><div class="fcond">${ICON[d.cond]||""} ${CONDS[d.cond]||""}</div><div class="fgrid"><div><b>Ночью</b>${esc(d.night)}°</div><div><b>Ветер</b>${esc(d.wind)}</div><div><b>Завтра</b>${tm(d)}</div></div><div class="fnote">${esc(d.note)}</div><div class="chips">${tips(d)}</div>${hourly(d)}</div>`;
   full.classList.add("on"); document.body.style.overflow = "hidden";
 }
 function closeFull(){ stopSound(); full.classList.remove("on"); full.innerHTML = ""; document.body.style.overflow = ""; }
@@ -301,7 +324,7 @@ document.addEventListener("keydown", e=>{
   else if (!document.getElementById("modal").classList.contains("on")) { if (e.key==="ArrowRight") stepFull(1); if (e.key==="ArrowLeft") stepFull(-1); }
 });
 let tx = null;
-full.addEventListener("touchstart", e=>{ tx = e.touches[0].clientX; }, {passive:true});
+full.addEventListener("touchstart", e=>{ tx = e.target.closest(".hours") ? null : e.touches[0].clientX; }, {passive:true});
 full.addEventListener("touchend", e=>{ if (tx===null) return; const dx = e.changedTouches[0].clientX - tx; tx = null; if (Math.abs(dx) > 70) stepFull(dx<0 ? 1 : -1); });
 if (matchMedia("(hover:hover)").matches) {
   const g = document.getElementById("grid");
@@ -350,11 +373,16 @@ $("a-link").onclick = async () => {
   try { await navigator.clipboard.writeText(u); $("a-link").textContent = "Ссылка скопирована ✓"; } catch(e){ prompt("Скопируйте ссылку:", u); }
 };
 async function load(){
+  if (Date.now() < pendingUntil) return;
   try {
     const r = await fetch("weather.json?t=" + Date.now(), {cache:"no-store"});
     if (!r.ok) return;
-    const j = await r.json();
-    if (JSON.stringify(j) !== JSON.stringify(data) && !full.classList.contains("on") && !document.getElementById("modal").classList.contains("on")) { data = j; render(); }
+    const txt = await r.text();
+    if (txt === lastFile) return;
+    if (full.classList.contains("on") || document.getElementById("modal").classList.contains("on")) return;
+    lastFile = txt; data = JSON.parse(txt);
+    data.cities.forEach(d => { if (d.auto!==false && LIVE[d.city]) OM.apply(d, LIVE[d.city]); });
+    render();
   } catch(e){}
 }
 function tick(){
@@ -403,6 +431,13 @@ if (location.hash.startsWith("#k=")) { const t = decodeURIComponent(location.has
 canEdit = !!tok();
 render();
 load(); setInterval(load, 60000);
+refreshLive(); setInterval(refreshLive, 3600000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden && Date.now() - (liveAt ? +liveAt : 0) > 3600000) refreshLive(); });
+let ds = null;
+full.addEventListener("pointerdown", e => { const h = e.target.closest(".hours"); if (h && e.pointerType==="mouse") { ds = {h, x:e.clientX, l:h.scrollLeft}; h.setPointerCapture(e.pointerId); } });
+full.addEventListener("pointermove", e => { if (ds) ds.h.scrollLeft = ds.l - (e.clientX - ds.x); });
+addEventListener("pointerup", () => { ds = null; });
+full.addEventListener("wheel", e => { const h = e.target.closest(".hours"); if (h && Math.abs(e.deltaY) > Math.abs(e.deltaX)) { h.scrollLeft += e.deltaY; e.preventDefault(); } }, {passive:false});
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 </body>

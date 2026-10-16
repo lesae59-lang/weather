@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Диспетчер дождя</title>
+<meta name="description" content="Будет ли дождь: вероятность и время начала и конца для выбранного места.">
+<meta name="theme-color" content="#070b1a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Дождь">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="dispatcher.webmanifest">
+<link rel="icon" href="icon-rain-192.png">
+<link rel="apple-touch-icon" href="icon-rain-180.png">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#070b1a;--fg:#eaf2ff;--mut:rgba(234,242,255,.65)}
+:root[data-theme="dark"],:root:not([data-theme="light"]){--bg:#070b1a;--fg:#eaf2ff;--mut:rgba(234,242,255,.65)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#070b1a;--fg:#eaf2ff;--mut:rgba(234,242,255,.65)}}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow-x:hidden}
+.bg{position:fixed;inset:0;z-index:-2;overflow:hidden}
+.bg i{position:absolute;border-radius:50%;filter:blur(80px);opacity:.5;animation:float 18s ease-in-out infinite alternate}
+.bg i:nth-child(1){width:55vmax;height:55vmax;left:-15vmax;top:-15vmax;background:#2563eb}
+.bg i:nth-child(2){width:45vmax;height:45vmax;right:-12vmax;bottom:-12vmax;background:#7c3aed;animation-delay:-6s}
+.bg i:nth-child(3){width:30vmax;height:30vmax;left:40%;top:30%;background:#06b6d4;opacity:.28;animation-delay:-12s}
+@keyframes float{to{transform:translate(8vmax,6vmax) scale(1.15)}}
+.drops{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
+.drop{position:absolute;top:-30px;width:2px;height:22px;background:linear-gradient(transparent,rgba(180,215,255,.8));animation:fall linear infinite}
+@keyframes fall{to{transform:translateY(115vh)}}
+main{max-width:720px;margin:0 auto;padding:22px 18px 36px;min-height:100vh;display:flex;flex-direction:column;gap:18px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.logo{font-weight:700;font-size:18px}
+.btn{border:0;border-radius:20px;padding:8px 14px;background:rgba(255,255,255,.12);color:#fff;cursor:pointer;backdrop-filter:blur(8px);font-size:14px;text-decoration:none}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 8px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:var(--fg);padding:10px 16px;border-radius:24px;cursor:pointer;font-size:15px;transition:.25s}
+.chip.on{background:linear-gradient(135deg,#3b82f6,#8b5cf6);border-color:transparent;box-shadow:0 6px 24px rgba(99,102,241,.45)}
+.card{margin:auto 0;padding:44px 22px;border-radius:32px;text-align:center;background:linear-gradient(160deg,rgba(255,255,255,.14),rgba(255,255,255,.04));border:1px solid rgba(255,255,255,.16);backdrop-filter:blur(18px);box-shadow:0 30px 80px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.2);transition:box-shadow .6s}
+.card.rain{box-shadow:0 0 0 1px rgba(125,211,252,.35),0 0 70px rgba(59,130,246,.4),0 30px 80px rgba(0,0,0,.45)}
+.place{font-size:20px;color:var(--mut);margin-bottom:18px}
+.line{display:flex;align-items:baseline;justify-content:center;gap:14px;flex-wrap:wrap;min-height:88px}
+.ico{font-size:46px;display:inline-block;animation:bob 2.4s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-6px)}}
+.pct{font-size:72px;font-weight:800;line-height:1;background:linear-gradient(135deg,#7dd3fc,#a5b4fc);-webkit-background-clip:text;background-clip:text;color:transparent}
+.tm{font-size:26px;font-weight:600}
+.dash{font-size:88px;font-weight:200;line-height:1;color:var(--mut)}
+.when{margin-top:18px;color:var(--mut);font-size:14px}
+.search{position:relative}
+.search input{width:100%;padding:14px 18px;border-radius:18px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:#fff;font-size:15px;outline:0}
+.search input:focus{border-color:#818cf8}
+#res{position:absolute;left:0;right:0;bottom:calc(100% + 6px);background:#141a33;border-radius:16px;overflow:hidden;z-index:5;box-shadow:0 16px 40px rgba(0,0,0,.5)}
+#res button{display:block;width:100%;text-align:left;padding:12px 16px;border:0;background:transparent;color:#fff;font-size:15px;cursor:pointer}
+#res button:hover{background:rgba(255,255,255,.1)}
+.foot{text-align:center;color:var(--mut);font-size:12px}
+@media (prefers-reduced-motion:reduce){.bg i,.drop,.ico{animation:none!important}}
+</style>
+</head>
+<body>
+<div class="bg"><i></i><i></i><i></i></div>
+<div class="drops" id="drops"></div>
+<main>
+  <div class="top"><span class="logo">🌧 Диспетчер дождя</span><span><a class="btn" href="./">← Погода</a> <button class="btn" id="inst">⬇ Установить</button></span></div>
+  <div class="chips" id="chips"></div>
+  <section class="card" id="card">
+    <div class="place" id="place">…</div>
+    <div class="line" id="line"><span class="dash">…</span></div>
+    <div class="when" id="when"></div>
+  </section>
+  <div class="search"><div id="res"></div><input id="q" placeholder="Найти другое место…" autocomplete="off"></div>
+  <div class="foot">Данные: Open-Meteo · обновляется автоматически</div>
+</main>
+<script src="core.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+const store = {
+  get(k,d){ try{ const v = JSON.parse(localStorage.getItem(k)); return v ?? d; }catch(e){ return d; } },
+  set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+let places = [], sel = null, dip = null;
+
+async function init(){
+  let base = [];
+  try {
+    const r = await fetch("weather.json?t=" + Date.now(), {cache:"no-store"});
+    const j = await r.json();
+    base = j.cities.map(c => { const [la,lo] = OM.coords(c); return {name:c.city, lat:la, lon:lo, tz:"Europe/Minsk"}; });
+  } catch(e){
+    base = Object.entries(OM.PLACES).map(([n,[la,lo]]) => ({name:n, lat:la, lon:lo, tz:"Europe/Minsk"}));
+  }
+  places = base.concat(store.get("rain_custom", []));
+  const saved = store.get("rain_sel", null);
+  sel = places.find(p => p.name === saved) || places[0];
+  drawChips(); update();
+  setInterval(update, 15*60000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) update(); });
+}
+function drawChips(){
+  $("chips").innerHTML = places.map(p => `<button class="chip${p===sel?" on":""}" data-n="${esc(p.name)}">${esc(p.name)}</button>`).join("");
+  const on = document.querySelector(".chip.on"); if (on && on.scrollIntoView) on.scrollIntoView({inline:"center", block:"nearest"});
+}
+$("chips").onclick = e => {
+  const b = e.target.closest(".chip"); if (!b) return;
+  sel = places.find(p => p.name === b.dataset.n); store.set("rain_sel", sel.name); drawChips(); update();
+};
+function drops(on){
+  const el = $("drops");
+  if (!on) { el.innerHTML = ""; return; }
+  if (el.children.length) return;
+  let h = ""; for (let i=0;i<70;i++) h += `<i class="drop" style="left:${(Math.random()*100).toFixed(1)}%;animation-delay:-${(Math.random()*1.4).toFixed(2)}s;animation-duration:${(.6+Math.random()*.5).toFixed(2)}s"></i>`;
+  el.innerHTML = h;
+}
+async function update(){
+  if (!sel) return;
+  $("place").textContent = sel.name;
+  try {
+    const w = await OM.get(sel.lat, sel.lon, sel.tz || "auto");
+    const rw = OM.rainWin(w.hours);
+    if (rw) {
+      const L = OM.label(rw, w.now);
+      $("line").innerHTML = `<span class="ico">🌧</span><span class="pct">${rw.p}%</span><span class="tm">${esc(L.text)}</span>`;
+    } else $("line").innerHTML = '<span class="dash">—</span>';
+    $("card").classList.toggle("rain", !!rw); drops(!!rw);
+    $("when").textContent = (rw ? "" : "Дождя в ближайшие 48 часов нет · ") + "обновлено " + new Date().toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"});
+  } catch(e){
+    $("line").innerHTML = '<span class="dash">…</span>'; $("when").textContent = "Нет связи с сервисом погоды, попробую позже";
+  }
+}
+let qt = null;
+$("q").oninput = () => {
+  clearTimeout(qt); const q = $("q").value.trim();
+  if (q.length < 2) { $("res").innerHTML = ""; return; }
+  qt = setTimeout(async () => {
+    try {
+      const r = await fetch("https://geocoding-api.open-meteo.com/v1/search?count=6&language=ru&format=json&name=" + encodeURIComponent(q));
+      const j = await r.json();
+      $("res").innerHTML = (j.results || []).map((x,i) => `<button data-i="${i}">${esc(x.name)}${x.admin1 ? ", " + esc(x.admin1) : ""}${x.country ? " · " + esc(x.country) : ""}</button>`).join("");
+      $("res").onclick = e => {
+        const b = e.target.closest("button"); if (!b) return;
+        const x = j.results[+b.dataset.i], name = x.name + (x.admin1 ? ", " + x.admin1 : "");
+        let p = places.find(p => p.name === name);
+        if (!p) { p = {name, lat:x.latitude, lon:x.longitude, tz:x.timezone || "auto"}; places.push(p); store.set("rain_custom", store.get("rain_custom", []).filter(z => z.name !== name).concat([p])); }
+        sel = p; store.set("rain_sel", name); $("q").value = ""; $("res").innerHTML = ""; drawChips(); update();
+      };
+    } catch(e){ $("res").innerHTML = ""; }
+  }, 350);
+};
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); dip = e; });
+window.addEventListener("appinstalled", () => { $("inst").hidden = true; });
+if (matchMedia("(display-mode: standalone)").matches || navigator.standalone) $("inst").hidden = true;
+$("inst").onclick = async () => {
+  if (dip) { dip.prompt(); await dip.userChoice; dip = null; return; }
+  alert("Chrome или Edge: значок установки в адресной строке или меню ⋮ → «Установить».\nAndroid: меню ⋮ → «Установить приложение».\niPhone: Safari → «Поделиться» → «На экран Домой».");
+};
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+init();
+</script>
+</body>
+</html>
