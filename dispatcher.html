@@ -118,12 +118,17 @@ async function update(){
   try {
     const w = await OM.get(sel.lat, sel.lon, sel.tz || "auto");
     const rw = OM.rainWin(w.hours);
+    const upd = "обновлено " + new Date().toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"});
     if (rw) {
-      const L = OM.label(rw, w.now);
-      $("line").innerHTML = `<span class="ico">🌧</span><span class="pct">${rw.p}%</span><span class="tm">${esc(L.text)}</span>`;
-    } else $("line").innerHTML = '<span class="dash">—</span>';
+      const L = OM.label(rw, w.now), m = OM.until(rw, w.now);
+      $("line").innerHTML = `<span class="ico">🌧</span>${rw.p != null ? `<span class="pct">${rw.p}%</span>` : ""}<span class="tm">${esc(L.text)}</span>`;
+      const go = rw.nowRain || m <= 0 ? "Дождь идёт сейчас" : "Дождь начнётся через " + (m >= 60 ? Math.floor(m/60) + " ч " : "") + (m % 60) + " мин";
+      $("when").textContent = go + (rw.p != null ? " · процент — максимум за период" : "") + " · " + upd;
+    } else {
+      $("line").innerHTML = '<span class="dash">—</span>';
+      $("when").textContent = "Дождя в ближайшие 48 часов нет · " + upd;
+    }
     $("card").classList.toggle("rain", !!rw); drops(!!rw);
-    $("when").textContent = (rw ? "" : "Дождя в ближайшие 48 часов нет · ") + "обновлено " + new Date().toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"});
   } catch(e){
     $("line").innerHTML = '<span class="dash">…</span>'; $("when").textContent = "Нет связи с сервисом погоды, попробую позже";
   }

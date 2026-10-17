@@ -132,6 +132,7 @@ h1{margin:0;font-size:clamp(26px,5vw,40px);letter-spacing:-.02em}
 .h:first-child{background:rgba(255,255,255,.3)}
 .h b{font-size:14px}.h small{font-size:11px;color:var(--mut)}
 .h .hi{font-size:26px}.h .ht{font-size:20px;font-weight:600}.h .hp{font-size:12px;min-height:16px;color:var(--mut)}
+.extras{margin-top:14px;font-size:15px;line-height:1.7;background:rgba(0,0,0,.25);padding:10px 18px;border-radius:16px;backdrop-filter:blur(8px);text-shadow:none;max-width:min(900px,100%)}
 </style>
 </head>
 <body>
@@ -221,18 +222,28 @@ function startSound(c,w){
   const wg = noise("lowpass",450,Math.min(.25,.03+w*.02));
   if (w>0) { const lfo = ac.createOscillator(), lg = ac.createGain(); lfo.frequency.value = .15; lg.gain.value = Math.min(.1,.01+w*.008); lfo.connect(lg); lg.connect(wg.gain); lfo.start(); snodes.push(lfo,lg); }
 }
-const LIVE = {}; let liveAt = null, lastFile = null, pendingUntil = 0;
+const LIVE = {}; let liveFail = false, liveAt = null, lastFile = null, pendingUntil = 0;
 async function refreshLive(){
-  await Promise.all(data.cities.filter(d => d.auto!==false).map(async d => {
-    try { const [la,lo] = OM.coords(d); const w = await OM.get(la,lo); LIVE[d.city] = w; OM.apply(d,w); } catch(e){}
-  }));
-  liveAt = new Date(); render();
+  const jobs = data.cities.filter(d => d.auto!==false).map(d => ({city:d.city, c:OM.coords(d)}));
+  let ok = 0;
+  await Promise.all(jobs.map(async j => { try { LIVE[j.city] = await OM.get(j.c[0], j.c[1]); ok++; } catch(e){} }));
+  data.cities.forEach(d => { if (d.auto!==false && LIVE[d.city]) OM.apply(d, LIVE[d.city]); });
+  liveFail = jobs.length > 0 && ok === 0;
+  if (ok) liveAt = new Date();
+  render();
   if (full.classList.contains("on") && !document.getElementById("modal").classList.contains("on")) openFull(curFull);
+}
+function extras(w){
+  const wk = OM.walk(w.hours), sn = OM.sun(w);
+  let h = wk ? `🚶 Лучшее время для прогулки: <b>${wk.from}–${wk.to}</b> · ${wk.temp}°` : "🚶 В ближайшие сутки нет сухого светлого окна для прогулки";
+  if (sn) h += `<br>🌅 ${sn.tomorrow ? "Завтра: " : ""}восход ${sn.rise} · 🌇 закат ${sn.set} · день ${Math.floor(sn.len/60)} ч ${sn.len%60} мин`;
+  return '<div class="extras">' + h + "</div>";
 }
 function hourly(d){
   const w = LIVE[d.city];
   if (!w) return '<div class="sub" style="margin-top:18px">' + (d.auto===false ? "Почасовой прогноз доступен для автоматических локаций" : "Загружаю почасовой прогноз…") + "</div>";
-  return '<div class="hours">' + w.hours.map((h,k) => `<div class="h"><b>${k===0?"Сейчас":h.t.slice(11,16)}</b>${h.t.slice(11,13)==="00"?`<small>${h.t.slice(8,10)}.${h.t.slice(5,7)}</small>`:""}<span class="hi">${ICON[OM.cond(h.c)]}</span><span class="ht">${Math.round(h.temp)}°</span><span class="hp">${h.p!=null?"💧 "+h.p+"%":""}</span></div>`).join("") + "</div>";
+  const ic = h => { const k = OM.cond(h.c); return !h.d && k==="clear" ? "🌙" : (!h.d && k==="partly" ? "☁️" : ICON[k]); };
+  return extras(w) + '<div class="hours">' + w.hours.map((h,k) => `<div class="h"><b>${k===0?"Сейчас":h.t.slice(11,16)}</b>${h.t.slice(11,13)==="00"?`<small>${h.t.slice(8,10)}.${h.t.slice(5,7)}</small>`:""}<span class="hi">${ic(h)}</span><span class="ht">${Math.round(h.temp)}°</span><span class="hp">${h.p!=null?"💧 "+h.p+"%":""}</span></div>`).join("") + "</div>";
 }
 const CONDS = {clear:"Ясно",partly:"Переменная облачность",cloudy:"Пасмурно",rain:"Дождь",storm:"Гроза",snow:"Снег",fog:"Туман"};
 let data = JSON.parse(document.getElementById("weather-data").textContent);
@@ -270,7 +281,7 @@ function render(){
         <div class="note">${esc(d.note)}</div><div class="chips">${tips(d)}</div>
       </div>
     </article>`).join("") + (canEdit ? '<button class="add" id="add">＋ Добавить локацию</button>' : "");
-  document.getElementById("sub").textContent = "Данные: Open-Meteo, обновляются каждый час" + (liveAt ? " · обновлено " + liveAt.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}) : "");
+  document.getElementById("sub").textContent = "Данные: Open-Meteo, обновляются каждый час" + (liveAt ? " · обновлено " + liveAt.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}) : (liveFail ? " · нет связи с Open-Meteo, показаны сохранённые значения" : ""));
   if (data.cities.length) {
     const warm = data.cities.reduce((a,b)=>b.temp>a.temp?b:a), wetC = data.cities.filter(x=>wet(x.cond)||x.cond==="snow").map(x=>x.city);
     document.getElementById("summary").textContent = "Теплее всего: " + warm.city + " (" + warm.temp + "°) · Осадки: " + (wetC.length ? wetC.join(", ") : "нигде");
