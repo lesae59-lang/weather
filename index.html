@@ -133,12 +133,60 @@ h1{margin:0;font-size:clamp(26px,5vw,40px);letter-spacing:-.02em}
 .h b{font-size:14px}.h small{font-size:11px;color:var(--mut)}
 .h .hi{font-size:26px}.h .ht{font-size:20px;font-weight:600}.h .hp{font-size:12px;min-height:16px;color:var(--mut)}
 .extras{margin-top:14px;font-size:15px;line-height:1.7;background:rgba(0,0,0,.25);padding:10px 18px;border-radius:16px;backdrop-filter:blur(8px);text-shadow:none;max-width:min(900px,100%)}
+.xtra{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:12px;width:min(900px,100%)}
+.xc{flex:1 1 230px;background:rgba(0,0,0,.25);border-radius:16px;padding:12px 16px;font-size:14px;line-height:1.55;backdrop-filter:blur(8px);text-shadow:none;text-align:left}
+.xc b{display:block;font-size:13px;color:var(--mut);font-weight:500;margin-bottom:2px}
+.lv-high{color:#4ade80}.lv-mid{color:#fbbf24}.lv-low{color:#f87171}
+.rbtn{margin-top:16px;padding:12px 24px;border-radius:24px;background:rgba(255,255,255,.2);color:#fff;text-decoration:none;backdrop-filter:blur(8px);font-size:15px}
+
+/* ===== матовое стекло ===== */
+.bg{position:fixed;inset:0;z-index:-2;overflow:hidden;pointer-events:none}
+.bg i{position:absolute;border-radius:50%;filter:blur(90px);opacity:.45;animation:float 20s ease-in-out infinite alternate}
+.bg i:nth-child(1){width:55vmax;height:55vmax;left:-15vmax;top:-15vmax;background:#2563eb}
+.bg i:nth-child(2){width:45vmax;height:45vmax;right:-12vmax;bottom:-12vmax;background:#7c3aed;animation-delay:-7s}
+.bg i:nth-child(3){width:28vmax;height:28vmax;left:45%;top:35%;background:#06b6d4;opacity:.25;animation-delay:-13s}
+@keyframes float{to{transform:translate(8vmax,6vmax) scale(1.15)}}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:900;opacity:.08;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.badge{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);backdrop-filter:blur(14px) saturate(140%);padding:8px 14px;font-size:13px}
+.card{height:430px;border:1px solid rgba(255,255,255,.18)}
+.info{inset:auto 10px 10px 10px;border-radius:22px;padding:14px 16px;background:rgba(255,255,255,.13);backdrop-filter:blur(16px) saturate(140%);border:1px solid rgba(255,255,255,.22);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 10px 30px rgba(0,0,0,.25);text-shadow:none}
+.temp{font-size:56px}
+.box{background:rgba(22,28,54,.72);backdrop-filter:blur(24px) saturate(140%);border:1px solid rgba(255,255,255,.14)}
+.xc,.extras,.h{border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.12);backdrop-filter:blur(14px) saturate(130%)}
+.full .fi>*{flex-shrink:0}
+.cmf{display:flex;align-items:center;gap:14px}
+.ring{position:relative;width:64px;height:64px;flex:none}
+.ring span{position:absolute;inset:0;display:grid;place-items:center;font-weight:700;font-size:18px}
+.ringc{animation:ringin 1.2s ease-out}
+@keyframes ringin{from{stroke-dasharray:0 163.4}}
+/* ===== новые анимации: листопад, падающие звёзды, радуга ===== */
+.leaf{position:absolute;top:-30px;opacity:.9;animation:leaf linear infinite}
+@keyframes leaf{0%{transform:translate(0,0) rotate(0)}25%{transform:translate(30px,110px) rotate(90deg)}50%{transform:translate(-10px,220px) rotate(200deg)}75%{transform:translate(35px,330px) rotate(290deg)}100%{transform:translate(0,470px) rotate(380deg)}}
+.full .leaf{animation-name:leaff}
+@keyframes leaff{0%{transform:translate(0,0) rotate(0)}25%{transform:translate(60px,28vh) rotate(90deg)}50%{transform:translate(-30px,55vh) rotate(200deg)}75%{transform:translate(70px,85vh) rotate(290deg)}100%{transform:translate(0,115vh) rotate(380deg)}}
+.shoot{position:absolute;width:90px;height:2px;border-radius:2px;background:linear-gradient(90deg,#fff,transparent);opacity:0;animation:shoot 7s linear infinite}
+@keyframes shoot{0%{opacity:0;transform:translate(0,0) rotate(-35deg)}3%{opacity:1}12%{opacity:0;transform:translate(-260px,180px) rotate(-35deg)}100%{opacity:0}}
+.full .shoot{animation-name:shootf;width:140px}
+@keyframes shootf{0%{opacity:0;transform:translate(0,0) rotate(-35deg)}3%{opacity:1}12%{opacity:0;transform:translate(-45vw,32vw) rotate(-35deg)}100%{opacity:0}}
+.rainbow{position:absolute;left:-10%;width:120%;aspect-ratio:1;top:14%;border-radius:50%;opacity:0;animation:rb 9s ease-in-out infinite;background:radial-gradient(closest-side,transparent 70%,rgba(255,60,60,.5) 72%,rgba(255,160,40,.5) 77%,rgba(255,235,60,.5) 82%,rgba(70,200,90,.5) 87%,rgba(70,140,255,.5) 92%,rgba(150,80,220,.5) 97%,transparent 100%)}
+@keyframes rb{0%,100%{opacity:0}30%,70%{opacity:.85}}
+.full .rainbow{top:8%;width:80vmin;left:calc(50% - 40vmin)}
+@media (prefers-reduced-motion:reduce){.leaf,.shoot,.rainbow,.bg i,.ringc{animation:none!important}}
+/* ===== телефон: карточки листаются в бок, лента часов не сжимается ===== */
+@media (max-width:640px){
+  .grid{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:14px;padding:16px 16px 28px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .grid::-webkit-scrollbar{display:none}
+  .grid>*{flex:0 0 84%;scroll-snap-align:center}
+  .h{flex-basis:70px}
+  .full .fi{padding-left:10px;padding-right:10px}
+}
 </style>
 </head>
 <body>
+<div class="bg"><i></i><i></i><i></i></div>
 <header>
   <div><h1>Погода: Минск и Брест</h1><div class="sub" id="clock"></div><div class="sub" id="summary"></div><div class="sub" id="sub">Ожидаемая погода, заданная вручную</div></div>
-  <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="badge" href="dispatcher.html" style="text-decoration:none;color:inherit">🌧 Диспетчер дождя</a><span class="badge" id="timeb">⏱ Время</span><span class="badge" id="install">⬇ Скачать приложение</span><span class="badge" id="mode">Режим просмотра</span></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="badge" href="radar.html" style="text-decoration:none;color:inherit">🛰 Радар</a><a class="badge" href="dispatcher.html" style="text-decoration:none;color:inherit">🌧 Диспетчер дождя</a><span class="badge" id="timeb">⏱ Время</span><span class="badge" id="install">⬇ Скачать приложение</span><span class="badge" id="mode">Режим просмотра</span></div>
 </header>
 <main class="grid" id="grid"></main>
 <div class="full" id="full"></div>
@@ -239,23 +287,69 @@ function extras(w){
   const wk = OM.walk(w.hours), sn = OM.sun(w);
   let h = wk ? `🚶 Лучшее время для прогулки: <b>${wk.from}–${wk.to}</b> · ${wk.temp}°` : "🚶 В ближайшие сутки нет сухого светлого окна для прогулки";
   if (sn) h += `<br>🌅 ${sn.tomorrow ? "Завтра: " : ""}восход ${sn.rise} · 🌇 закат ${sn.set} · день ${Math.floor(sn.len/60)} ч ${sn.len%60} мин`;
+  h += "<br>" + moonLine();
   return '<div class="extras">' + h + "</div>";
 }
 function hourly(d){
   const w = LIVE[lk(d)];
   if (!w) return '<div class="sub" style="margin-top:18px">' + (d.auto===false ? "Почасовой прогноз доступен для автоматических локаций" : "Загружаю почасовой прогноз…") + "</div>";
   const ic = h => { const k = OM.cond(h.c); return !h.d && k==="clear" ? "🌙" : (!h.d && k==="partly" ? "☁️" : ICON[k]); };
-  return extras(w) + '<div class="hours">' + w.hours.map((h,k) => `<div class="h"><b>${k===0?"Сейчас":h.t.slice(11,16)}</b>${h.t.slice(11,13)==="00"?`<small>${h.t.slice(8,10)}.${h.t.slice(5,7)}</small>`:""}<span class="hi">${ic(h)}</span><span class="ht">${Math.round(h.temp)}°</span><span class="hp">${h.p!=null?"💧 "+h.p+"%":""}</span></div>`).join("") + "</div>";
+  return extras(w) + '<div class="hours">' + w.hours.map((h,k) => `<div class="h"><b>${k===0?"Сейчас":h.t.slice(11,16)}</b>${h.t.slice(11,13)==="00"?`<small>${h.t.slice(8,10)}.${h.t.slice(5,7)}</small>`:""}<span class="hi">${ic(h)}</span><span class="ht">${Math.round(h.temp)}°</span><span class="hp">${h.p!=null?"💧 "+h.p+"%":""}</span></div>`).join("") + '</div><div class="xtra" id="xtra">' + xtraHtml(lk(d)) + "</div>";
+}
+const EXTRA = {}, XPEND = {};
+const nf = x => x == null ? "—" : Math.round(x*10)/10;
+function comfort(k){
+  const w = LIVE[k]; if (!w) return "";
+  const c = w.cur, E = EXTRA[k]; let sc = 100;
+  const t = c.apparent_temperature != null ? c.apparent_temperature : c.temperature_2m;
+  if (t < 15) sc -= (15-t)*3; else if (t > 24) sc -= (t-24)*4;
+  if (c.wind_speed_10m > 5) sc -= (c.wind_speed_10m-5)*3;
+  const rw = OM.rainWin(w.hours); if (rw && (rw.nowRain || OM.until(rw, w.now) <= 180)) sc -= 25;
+  if (E && E.air) { if (E.air.uv > 6) sc -= (E.air.uv-6)*3; if (E.air.aqi > 40) sc -= (E.air.aqi-40)*.5; }
+  sc = Math.max(0, Math.min(100, Math.round(sc)));
+  const lab = sc>=80 ? "отлично" : sc>=60 ? "хорошо" : sc>=40 ? "так себе" : sc>=20 ? "неуютно" : "лучше остаться дома";
+  const col = sc>=60 ? "#4ade80" : sc>=40 ? "#fbbf24" : "#f87171";
+  return `<div class="xc cmf"><div class="ring"><svg viewBox="0 0 64 64" width="64" height="64"><circle cx="32" cy="32" r="26" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="7"/><circle class="ringc" cx="32" cy="32" r="26" fill="none" stroke="${col}" stroke-width="7" stroke-linecap="round" stroke-dasharray="${(sc/100*163.4).toFixed(1)} 163.4" transform="rotate(-90 32 32)"/></svg><span>${sc}</span></div><div><b>✨ Индекс комфорта</b>${lab}<br><small>ощущаемая температура, ветер, дождь, УФ, воздух</small></div></div>`;
+}
+const feels = d => { const w = LIVE[lk(d)]; return w && w.cur.apparent_temperature != null ? `<div><b>Ощущается</b>${Math.round(w.cur.apparent_temperature)}°</div>` : ""; };
+function moonLine(){
+  const syn = 29.530588853, ref = Date.UTC(2000,0,6,18,14), ph = ((((+simNow()) - ref)/86400000) % syn + syn) % syn / syn;
+  const il = Math.round((1 - Math.cos(2*Math.PI*ph))/2*100), i = Math.floor(ph*8 + .5) % 8;
+  return ["🌑","🌒","🌓","🌔","🌕","🌖","🌗","🌘"][i] + " Луна: " + ["новолуние","молодая луна","первая четверть","растущая луна","полнолуние","убывающая луна","последняя четверть","старая луна"][i] + ", освещено " + il + "%";
+}
+function xtraHtml(k){
+  const E = EXTRA[k], cm = comfort(k);
+  if (!E) return cm + '<div class="xc">Загружаю данные о надёжности прогноза и воздухе…</div>';
+  const c = E.conf, a = E.air;
+  let h = cm + (c ? `<div class="xc"><b>🎯 Уверенность прогноза</b><span class="lv-${c.level}">●</span> ${c.title}<br>${c.text}</div>` : '<div class="xc"><b>🎯 Уверенность прогноза</b>Нет данных</div>');
+  h += a ? `<div class="xc"><b>🌫 Воздух и УФ</b>Воздух: ${a.aqiText}${a.aqi!=null?" (AQI "+nf(a.aqi)+")":""}<br>PM2.5: ${nf(a.pm25)} · PM10: ${nf(a.pm10)}<br>УФ-индекс: ${nf(a.uv)} (${a.uvText})</div><div class="xc"><b>🌼 Пыльца</b>${a.pollenText}</div>` : '<div class="xc"><b>🌫 Воздух, УФ, пыльца</b>Нет данных</div>';
+  return h;
+}
+function ensureExtra(d){
+  const k = lk(d), E = EXTRA[k];
+  if ((E && Date.now() - E.at < 3600000) || XPEND[k]) return;
+  XPEND[k] = true; const [la,lo] = OM.coords(d);
+  Promise.all([OM.confidence(la,lo).catch(()=>null), OM.air(la,lo).catch(()=>null)]).then(([conf,air]) => {
+    XPEND[k] = false; EXTRA[k] = {at:Date.now(), conf, air};
+    const el = document.getElementById("xtra");
+    if (el && full.classList.contains("on") && data.cities[curFull] && lk(data.cities[curFull]) === k) el.innerHTML = xtraHtml(k);
+  });
 }
 const CONDS = {clear:"Ясно",partly:"Переменная облачность",cloudy:"Пасмурно",rain:"Дождь",storm:"Гроза",snow:"Снег",fog:"Туман"};
 let data = JSON.parse(document.getElementById("weather-data").textContent);
 let canEdit = false, editing = -1, newItem = false;
 const rnd = Math.random;
 
-function scene(c,k=1,w=0){
-  let h = "";
+const sx = d => { const w = LIVE[lk(d)]; return {rb: !!(w && d.cond==="partly" && !isNight() && w.hours.slice(0,6).some(h => (h.p||0) >= 30 || (h.mm||0) >= 0.1))}; };
+function scene(c,k=1,w=0,ex){
+  let h = ""; const x = ex || {};
+  if (["clear","partly","cloudy"].includes(c) && !isNight() && [8,9,10].includes(new Date().getMonth())) {
+    const nl = Math.round((4 + Math.min(w,8)) * (k>1 ? 1.6 : 1));
+    for (let i=0;i<nl;i++) h += `<i class="leaf" style="left:${(Math.random()*100).toFixed(1)}%;font-size:${14+Math.round(Math.random()*12)}px;animation-delay:-${(Math.random()*12).toFixed(1)}s;animation-duration:${(8+Math.random()*6).toFixed(1)}s">${i%2?"🍁":"🍂"}</i>`;
+  }
+  if (x.rb) h += '<div class="rainbow"></div>';
   if (c==="clear"||c==="partly") {
-    if (isNight()) { h += '<div class="moon"></div>'; for (let i=0;i<32*k;i++) h += `<i class="star" style="left:${(rnd()*100).toFixed(1)}%;top:${(rnd()*70).toFixed(1)}%;animation-delay:-${(rnd()*3).toFixed(1)}s"></i>`; }
+    if (isNight()) { h += '<div class="moon"></div>' + [0,1,2].map(() => `<i class="shoot" style="top:${(5+Math.random()*35).toFixed(0)}%;left:${(40+Math.random()*55).toFixed(0)}%;animation-delay:-${(Math.random()*7).toFixed(1)}s;animation-duration:${(6+Math.random()*5).toFixed(1)}s"></i>`).join(""); for (let i=0;i<32*k;i++) h += `<i class="star" style="left:${(rnd()*100).toFixed(1)}%;top:${(rnd()*70).toFixed(1)}%;animation-delay:-${(rnd()*3).toFixed(1)}s"></i>`; }
     else h += '<div class="sun"></div>';
   }
   const n = {partly:2,cloudy:4,rain:4,storm:5,snow:3}[c]||0;
@@ -272,7 +366,7 @@ const esc = s => String(s??"").replace(/[&<>"]/g, m=>({"&":"&amp;","<":"&lt;",">
 function render(){
   document.getElementById("grid").innerHTML = data.cities.map((d,i)=>`
     <article class="card" data-i="${i}" style="animation-delay:${i*.08}s">
-      <div class="scene c-${d.cond}${isNight()?" night":""}">${scene(d.cond,1,wspd(d))}</div>
+      <div class="scene c-${d.cond}${isNight()?" night":""}">${scene(d.cond,1,wspd(d),sx(d))}</div>
       ${canEdit?`<button class="edit" data-i="${i}">✎ Изменить</button>`:""}
       <div class="info">
         <div class="city">${esc(d.city)}</div>
@@ -327,8 +421,8 @@ render();
 const full = document.getElementById("full");
 function openFull(i){
   const d = data.cities[i];
-  curFull = i; stopSound(); if (soundOn) startSound(d.cond, wspd(d)); full.innerHTML = `<div class="scene c-${d.cond}${isNight()?" night":""}">${scene(d.cond,6,wspd(d))}</div><button class="back">← Назад</button><button class="nav prev">‹</button><button class="nav next">›</button><button class="snd" title="Звук погоды">${soundOn?"🔊":"🔇"}</button>${canEdit?`<button class="edit" data-i="${i}">✎ Изменить</button>`:""}<div class="fi"><div class="fcity">${esc(d.city)}</div><div class="ftemp">${esc(d.temp)}°</div><div class="fcond">${ICON[d.cond]||""} ${CONDS[d.cond]||""}</div><div class="fgrid"><div><b>Ночью</b>${esc(d.night)}°</div><div><b>Ветер</b>${esc(d.wind)}</div><div><b>Завтра</b>${tm(d)}</div></div><div class="fnote">${esc(d.note)}</div><div class="chips">${tips(d)}</div>${hourly(d)}</div>`;
-  full.classList.add("on"); document.body.style.overflow = "hidden";
+  curFull = i; stopSound(); if (soundOn) startSound(d.cond, wspd(d)); full.innerHTML = `<div class="scene c-${d.cond}${isNight()?" night":""}">${scene(d.cond,6,wspd(d),sx(d))}</div><button class="back">← Назад</button><button class="nav prev">‹</button><button class="nav next">›</button><button class="snd" title="Звук погоды">${soundOn?"🔊":"🔇"}</button>${canEdit?`<button class="edit" data-i="${i}">✎ Изменить</button>`:""}<div class="fi"><div class="fcity">${esc(d.city)}</div><div class="ftemp">${esc(d.temp)}°</div><div class="fcond">${ICON[d.cond]||""} ${CONDS[d.cond]||""}</div><div class="fgrid"><div><b>Ночью</b>${esc(d.night)}°</div><div><b>Ветер</b>${esc(d.wind)}</div><div><b>Завтра</b>${tm(d)}</div>${feels(d)}</div><div class="fnote">${esc(d.note)}</div><div class="chips">${tips(d)}</div>${hourly(d)}<a class="rbtn" href="radar.html?ll=${OM.coords(d).join(",")}&n=${encodeURIComponent(d.city)}">🛰 Радар осадков</a></div>`;
+  full.classList.add("on"); document.body.style.overflow = "hidden"; ensureExtra(d);
 }
 function closeFull(){ stopSound(); full.classList.remove("on"); full.innerHTML = ""; document.body.style.overflow = ""; }
 function stepFull(dir){ const n = data.cities.length; if (full.classList.contains("on") && n) openFull((curFull + dir + n) % n); }

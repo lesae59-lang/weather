@@ -14,7 +14,7 @@ const OM = (() => {
 
   async function get(lat, lon, tz){
     const u = "https://api.open-meteo.com/v1/forecast?latitude=" + lat + "&longitude=" + lon +
-      "&current=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m,is_day" +
+      "&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,is_day" +
       "&hourly=temperature_2m,precipitation_probability,precipitation,weather_code,wind_speed_10m,is_day" +
       "&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset&wind_speed_unit=ms&forecast_days=3&timezone=" + encodeURIComponent(tz || "Europe/Minsk");
     const r = await fetch(u); if (!r.ok) throw new Error("Open-Meteo " + r.status);
@@ -29,8 +29,8 @@ const OM = (() => {
   // Час считается дождливым, если не снег и: (вероятность известна → ≥40% и есть осадки или код дождя) / (вероятности нет → код дождя или ≥0.3 мм)
   const isRain = h => {
     if (snow(h.c)) return false;
-    if (h.p == null) return rain(h.c) || (h.mm||0) >= 0.3;
-    return h.p >= 40 && ((h.mm||0) >= 0.1 || rain(h.c));
+    if (h.p == null) return rain(h.c) || (h.mm||0) >= 0.2;
+    return (h.p >= 30 && ((h.mm||0) >= 0.1 || rain(h.c))) || (h.mm||0) >= 0.5;
   };
   const endOf = t => new Date(ms(t) + 3600000).toISOString().slice(0,16);
   function rainWin(hours){
@@ -74,5 +74,51 @@ const OM = (() => {
     if (!D.sunrise || !D.sunrise[k]) return null;
     return {rise:D.sunrise[k].slice(11,16), set:D.sunset[k].slice(11,16), len:Math.round((ms(D.sunset[k]) - ms(D.sunrise[k]))/60000), tomorrow:k===1};
   }
-  return {PLACES, cond, coords, get, rainWin, label, until, apply, walk, sun};
+
+  const mw = n => n===1 ? "модель" : (n<5 ? "модели" : "моделей");
+  // Уверенность прогноза: сравниваем несколько погодных моделей (ICON, GFS, ECMWF) на ближайшие 24 часа
+  async function confidence(lat, lon, tz){
+    const u = "https://api.open-meteo.com/v1/forecast?latitude=" + lat + "&longitude=" + lon + "&current=temperature_2m&hourly=temperature_2m,precipitation&models=icon_seamless,gfs_seamless,ecmwf_ifs025&forecast_days=2&timezone=" + encodeURIComponent(tz || "Europe/Minsk");
+    const r = await fetch(u); if (!r.ok) throw new Error("Open-Meteo " + r.status);
+    const j = await r.json(), H = j.hourly, cur = j.current.time.slice(0,13);
+    let i0 = H.time.findIndex(t => t.slice(0,13) === cur); if (i0 < 0) i0 = 0;
+    const end = Math.min(i0 + 24, H.time.length);
+    const live = pre => Object.keys(H).filter(k => k.startsWith(pre + "_") && !k.includes("probability") && H[k].some(v => v != null));
+    const P = live("precipitation"), T = live("temperature_2m"), N = P.length;
+    if (N < 2) return null;
+    const sets = P.map(k => { const st = new Set(); for (let i=i0; i<end; i++) if ((H[k][i]||0) >= 0.1) st.add(i); return st; });
+    const wet = sets.filter(st => st.size);
+    let level, title, text;
+    if (!wet.length) { level = "high"; title = "высокая"; text = "Все " + N + " " + mw(N) + " сходятся: в ближайшие 24 часа дождя не будет"; }
+    else {
+      const all = new Set(wet.flatMap(st => [...st])), inter = [...all].filter(i => wet.every(st => st.has(i))).length, ov = inter / all.size;
+      if (wet.length === N) {
+        if (ov >= .5) { level = "high"; title = "высокая"; text = "Все " + N + " " + mw(N) + " ждут дождь, время почти совпадает"; }
+        else { level = "mid"; title = "средняя"; text = "Все модели ждут дождь, но время расходится"; }
+      } else { level = "low"; title = "низкая"; text = "Дождь ждут " + wet.length + " из " + N + " моделей, прогноз спорный"; }
+    }
+    if (T.length > 1) {
+      const m = T.map(k => { let sum = 0, n = 0; for (let i=i0; i<end; i++) if (H[k][i] != null) { sum += H[k][i]; n++; } return n ? sum/n : null; }).filter(v => v != null);
+      if (m.length > 1) text += " · разброс температуры " + (Math.max(...m) - Math.min(...m)).toFixed(1) + "°";
+    }
+    return {level, title, text, N};
+  }
+
+  // Качество воздуха, УФ-индекс, пыльца
+  const POLLEN = {alder_pollen:"ольха", birch_pollen:"берёза", grass_pollen:"злаки", mugwort_pollen:"полынь", ragweed_pollen:"амброзия"};
+  async function air(lat, lon, tz){
+    const u = "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=" + lat + "&longitude=" + lon + "&current=european_aqi,pm10,pm2_5,uv_index," + Object.keys(POLLEN).join(",") + "&timezone=" + encodeURIComponent(tz || "Europe/Minsk");
+    const r = await fetch(u); if (!r.ok) throw new Error("Open-Meteo air " + r.status);
+    const c = (await r.json()).current;
+    const aqi = c.european_aqi, uv = c.uv_index;
+    const aqiText = aqi == null ? "нет данных" : aqi<=20 ? "отличный" : aqi<=40 ? "хороший" : aqi<=60 ? "умеренный" : aqi<=80 ? "плохой" : aqi<=100 ? "очень плохой" : "опасный";
+    const uvText = uv == null ? "нет данных" : uv<3 ? "низкий" : uv<6 ? "умеренный" : uv<8 ? "высокий" : uv<11 ? "очень высокий" : "экстремальный";
+    const pol = Object.keys(POLLEN).filter(k => c[k] != null).map(k => [POLLEN[k], c[k]]).sort((a,b) => b[1]-a[1]);
+    let pollenText;
+    if (!pol.length) pollenText = "Вне сезона или нет данных";
+    else if (pol[0][1] < 1) pollenText = "Сейчас пыльцы практически нет";
+    else { const v = Math.round(pol[0][1]); pollenText = "Преобладает " + pol[0][0] + ": " + v + " зёрен/м³ (" + (v<10?"низкая":v<50?"умеренная":v<200?"высокая":"очень высокая") + " концентрация)"; }
+    return {aqi, aqiText, pm25:c.pm2_5, pm10:c.pm10, uv, uvText, pollenText};
+  }
+  return {PLACES, cond, coords, get, rainWin, label, until, apply, walk, sun, confidence, air, isRain};
 })();

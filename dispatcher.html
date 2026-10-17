@@ -53,21 +53,40 @@ main{max-width:720px;margin:0 auto;padding:22px 18px 36px;min-height:100vh;displ
 #res{position:absolute;left:0;right:0;bottom:calc(100% + 6px);background:#141a33;border-radius:16px;overflow:hidden;z-index:5;box-shadow:0 16px 40px rgba(0,0,0,.5)}
 #res button{display:block;width:100%;text-align:left;padding:12px 16px;border:0;background:transparent;color:#fff;font-size:15px;cursor:pointer}
 #res button:hover{background:rgba(255,255,255,.1)}
+.lv-high{color:#4ade80}.lv-mid{color:#fbbf24}.lv-low{color:#f87171}
 .foot{text-align:center;color:var(--mut);font-size:12px}
 @media (prefers-reduced-motion:reduce){.bg i,.drop,.ico{animation:none!important}}
+
+/* ===== матовое стекло ===== */
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:900;opacity:.08;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.card{backdrop-filter:blur(26px) saturate(150%);-webkit-backdrop-filter:blur(26px) saturate(150%);background:linear-gradient(160deg,rgba(255,255,255,.16),rgba(255,255,255,.05))}
+.chip{backdrop-filter:blur(12px);background:rgba(255,255,255,.08)}
+.bars{display:flex;align-items:flex-end;gap:3px;height:48px;margin:20px auto 0;max-width:420px}
+.bars i{flex:1;background:rgba(255,255,255,.22);border-radius:3px;transition:height .6s}
+.bars i.r{background:linear-gradient(#7dd3fc,#818cf8)}
+.barlab{display:flex;justify-content:space-between;max-width:420px;margin:5px auto 0;font-size:11px;color:var(--mut)}
+.dots{display:flex;gap:7px;justify-content:center}
+.dots i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.25);transition:.3s}
+.dots i.on{background:#a5b4fc;width:20px;border-radius:6px}
+.card.sl{animation:sl .35s ease-out}.card.sr{animation:sr .35s ease-out}
+@keyframes sl{from{opacity:0;transform:translateX(46px)}}
+@keyframes sr{from{opacity:0;transform:translateX(-46px)}}
 </style>
 </head>
 <body>
 <div class="bg"><i></i><i></i><i></i></div>
 <div class="drops" id="drops"></div>
 <main>
-  <div class="top"><span class="logo">🌧 Диспетчер дождя</span><span><a class="btn" href="./">← Погода</a> <button class="btn" id="inst">⬇ Установить</button></span></div>
+  <div class="top"><span class="logo">🌧 Диспетчер дождя</span><span><a class="btn" href="./">← Погода</a> <a class="btn" href="radar.html">🛰 Радар</a> <button class="btn" id="inst">⬇ Установить</button></span></div>
   <div class="chips" id="chips"></div>
   <section class="card" id="card">
     <div class="place" id="place">…</div>
     <div class="line" id="line"><span class="dash">…</span></div>
+    <div class="bars" id="bars"></div><div class="barlab"><span>сейчас</span><span>+12 ч</span><span>+24 ч</span></div>
     <div class="when" id="when"></div>
+    <div class="when" id="conf" style="margin-top:10px"></div>
   </section>
+  <div class="dots" id="dots"></div>
   <div class="search"><div id="res"></div><input id="q" placeholder="Найти другое место…" autocomplete="off"></div>
   <div class="foot">Данные: Open-Meteo · обновляется автоматически</div>
 </main>
@@ -97,7 +116,18 @@ async function init(){
   setInterval(update, 15*60000);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) update(); });
 }
-function drawChips(){
+function drawDots(){ $("dots").innerHTML = places.length <= 12 ? places.map(p => `<i class="${p===sel?"on":""}"></i>`).join("") : ""; }
+function go(dir){
+  if (places.length < 2) return;
+  const i = places.indexOf(sel); sel = places[(i + dir + places.length) % places.length];
+  store.set("rain_sel", sel.name); drawChips(); update();
+  const c = $("card"); c.classList.remove("sl","sr"); void c.offsetWidth; c.classList.add(dir > 0 ? "sl" : "sr");
+}
+let sx = null, sy = 0;
+document.addEventListener("touchstart", e => { if (e.target.closest(".chips,input,#res")) { sx = null; return; } sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, {passive:true});
+document.addEventListener("touchend", e => { if (sx === null) return; const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy; sx = null; if (Math.abs(dx) > 50 && Math.abs(dy) < 70) go(dx < 0 ? 1 : -1); });
+document.addEventListener("keydown", e => { if (e.target.tagName === "INPUT") return; if (e.key === "ArrowRight") go(1); if (e.key === "ArrowLeft") go(-1); });
+function drawChips(){ drawDots();
   $("chips").innerHTML = places.map(p => `<button class="chip${p===sel?" on":""}" data-n="${esc(p.name)}">${esc(p.name)}</button>`).join("");
   const on = document.querySelector(".chip.on"); if (on && on.scrollIntoView) on.scrollIntoView({inline:"center", block:"nearest"});
 }
@@ -118,6 +148,9 @@ async function update(){
   try {
     const w = await OM.get(sel.lat, sel.lon, sel.tz || "auto");
     const rw = OM.rainWin(w.hours);
+    const hs = w.hours.slice(0,24);
+    $("bars").innerHTML = hs.map(h => { const v = h.p != null ? h.p : (h.mm > 0 ? 60 : 0); return `<i class="${OM.isRain(h) ? "r" : ""}" style="height:${Math.max(7, v)}%" title="${h.t.slice(11,16)} — ${h.p != null ? h.p + "%" : h.mm + " мм"}"></i>`; }).join("");
+    const mx = w.hours.reduce((a,h) => (h.p != null && h.p > a.p) ? {p:h.p, t:h.t} : a, {p:-1, t:""});
     const upd = "обновлено " + new Date().toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"});
     if (rw) {
       const L = OM.label(rw, w.now), m = OM.until(rw, w.now);
@@ -126,12 +159,16 @@ async function update(){
       $("when").textContent = go + (rw.p != null ? " · процент — максимум за период" : "") + " · " + upd;
     } else {
       $("line").innerHTML = '<span class="dash">—</span>';
-      $("when").textContent = "Дождя в ближайшие 48 часов нет · " + upd;
+      $("when").textContent = "Дождя в ближайшие 48 часов нет" + (mx.p >= 0 ? " · максимум вероятности " + mx.p + "% в " + mx.t.slice(11,16) : "") + " · " + upd;
     }
-    $("card").classList.toggle("rain", !!rw); drops(!!rw);
+    $("card").classList.toggle("rain", !!rw); drops(!!rw); showConf(sel);
   } catch(e){
     $("line").innerHTML = '<span class="dash">…</span>'; $("when").textContent = "Нет связи с сервисом погоды, попробую позже";
   }
+}
+async function showConf(me){
+  $("conf").textContent = "";
+  try { const c = await OM.confidence(me.lat, me.lon, me.tz || "auto"); if (me !== sel) return; $("conf").innerHTML = c ? `🎯 Уверенность: <span class="lv-${c.level}">●</span> ${c.title}. ${esc(c.text)}` : ""; } catch(e){}
 }
 let qt = null;
 $("q").oninput = () => {
