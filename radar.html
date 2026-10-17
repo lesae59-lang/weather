@@ -36,7 +36,7 @@ main{max-width:1000px;margin:0 auto;padding:18px;min-height:100vh;display:flex;f
   <div class="top"><span class="logo">🛰 Радар осадков</span><span><a class="btn" href="./">← Погода</a> <a class="btn" href="dispatcher.html">🌧 Диспетчер</a></span></div>
   <div class="chips" id="chips"></div>
   <div class="mapwrap"><div id="map"></div><div class="ctl"><button class="btn" id="play">⏸</button><input type="range" id="sl" min="0" max="0" value="0"><span id="tl">загрузка…</span></div></div>
-  <div class="foot">Радар: RainViewer · карта: © OpenStreetMap, © CARTO. Оттенки синего и фиолетового — интенсивность осадков.</div>
+  <div class="foot">Радар: RainViewer · карта: © OpenStreetMap. Оттенки синего и фиолетового — интенсивность осадков.</div>
 </main>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="core.js"></script>
@@ -67,7 +67,7 @@ async function initRadar(){
     const j = await (await fetch("https://api.rainviewer.com/public/weather-maps.json")).json();
     const past = j.radar.past || [], now = j.radar.nowcast || [];
     frames = past.concat(now); nPast = past.length;
-    layers = frames.map(f => L.tileLayer(j.host + f.path + "/256/{z}/{x}/{y}/2/1_1.png", {opacity:0, maxNativeZoom:7, maxZoom:12, zIndex:5}).addTo(map));
+    layers = frames.map(f => L.tileLayer(j.host + f.path + "/256/{z}/{x}/{y}/2/1_1.png", {pane:"radar", opacity:0, maxNativeZoom:7, maxZoom:12}).addTo(map));
     $("sl").max = frames.length - 1; show(Math.max(0, nPast - 1)); play();
   } catch(e){ $("tl").textContent = "Радар недоступен"; }
 }
@@ -83,7 +83,11 @@ async function init(){
   drawChips();
   if (typeof L === "undefined") { $("tl").textContent = "Карта не загрузилась"; return; }
   map = L.map("map").setView([sel.lat, sel.lon], 7);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {maxZoom:12, attribution:"© OpenStreetMap © CARTO"}).addTo(map);
+  // подложка OpenStreetMap без ключа; тёмный вид даёт CSS-фильтр только на её слое, радар остаётся цветным
+  map.createPane("base"); map.getPane("base").style.zIndex = 200;
+  map.getPane("base").style.filter = "invert(1) hue-rotate(180deg) brightness(.9) contrast(.95) saturate(.8)";
+  map.createPane("radar"); map.getPane("radar").style.zIndex = 250;
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {pane:"base", maxZoom:12, attribution:"© OpenStreetMap contributors"}).addTo(map);
   marker = L.circleMarker([sel.lat, sel.lon], {radius:8, color:"#fff", weight:2, fillColor:"#6366f1", fillOpacity:1}).addTo(map);
   setTimeout(() => map.invalidateSize(), 200);
   initRadar();
