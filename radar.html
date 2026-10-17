@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Радар осадков</title>
+<meta name="description" content="Анимированный радар осадков на карте: где идёт дождь и куда движется.">
+<meta name="theme-color" content="#070b1a">
+<link rel="icon" href="icon-rain-192.png">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#070b1a;--fg:#eaf2ff;--mut:rgba(234,242,255,.65)}
+:root[data-theme="dark"],:root:not([data-theme="light"]){--bg:#070b1a;--fg:#eaf2ff;--mut:rgba(234,242,255,.65)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#070b1a;--fg:#eaf2ff;--mut:rgba(234,242,255,.65)}}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:1000px;margin:0 auto;padding:18px;min-height:100vh;display:flex;flex-direction:column;gap:14px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.logo{font-weight:700;font-size:18px}
+.btn{border:0;border-radius:20px;padding:8px 14px;background:rgba(255,255,255,.12);color:#fff;cursor:pointer;font-size:14px;text-decoration:none}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 6px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:var(--fg);padding:9px 15px;border-radius:24px;cursor:pointer;font-size:14px}
+.chip.on{background:linear-gradient(135deg,#3b82f6,#8b5cf6);border-color:transparent}
+.mapwrap{position:relative;flex:1;min-height:60vh}
+#map{position:absolute;inset:0;border-radius:24px;overflow:hidden;background:#0b1020;border:1px solid rgba(255,255,255,.15)}
+.ctl{position:absolute;left:12px;right:12px;bottom:12px;z-index:1000;display:flex;gap:12px;align-items:center;background:rgba(10,14,30,.75);backdrop-filter:blur(10px);padding:10px 14px;border-radius:18px}
+.ctl input{flex:1;accent-color:#818cf8}
+#tl{min-width:120px;text-align:right;font-size:14px}
+.foot{text-align:center;color:var(--mut);font-size:12px}
+</style>
+</head>
+<body>
+<main>
+  <div class="top"><span class="logo">🛰 Радар осадков</span><span><a class="btn" href="./">← Погода</a> <a class="btn" href="dispatcher.html">🌧 Диспетчер</a></span></div>
+  <div class="chips" id="chips"></div>
+  <div class="mapwrap"><div id="map"></div><div class="ctl"><button class="btn" id="play">⏸</button><input type="range" id="sl" min="0" max="0" value="0"><span id="tl">загрузка…</span></div></div>
+  <div class="foot">Радар: RainViewer · карта: © OpenStreetMap, © CARTO. Оттенки синего и фиолетового — интенсивность осадков.</div>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="core.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+let places = [], sel = null, map = null, marker = null, frames = [], layers = [], nPast = 0, idx = 0, timer = null;
+
+function drawChips(){
+  $("chips").innerHTML = places.map(p => `<button class="chip${p===sel?" on":""}" data-n="${esc(p.name)}">${esc(p.name)}</button>`).join("");
+}
+$("chips").onclick = e => {
+  const b = e.target.closest(".chip"); if (!b) return;
+  sel = places.find(p => p.name === b.dataset.n); drawChips();
+  if (map) { map.setView([sel.lat, sel.lon], 7); marker.setLatLng([sel.lat, sel.lon]); }
+};
+function show(i){
+  layers.forEach((l,k) => l.setOpacity(k===i ? .75 : 0)); idx = i; $("sl").value = i;
+  const f = frames[i]; $("tl").textContent = new Date(f.time*1000).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}) + (i >= nPast ? " · прогноз" : "");
+}
+function stop(){ clearInterval(timer); timer = null; $("play").textContent = "▶"; }
+function play(){ stop(); $("play").textContent = "⏸"; timer = setInterval(() => show((idx+1) % frames.length), 700); }
+$("play").onclick = () => timer ? stop() : play();
+$("sl").oninput = () => { stop(); show(+$("sl").value); };
+
+async function initRadar(){
+  try {
+    const j = await (await fetch("https://api.rainviewer.com/public/weather-maps.json")).json();
+    const past = j.radar.past || [], now = j.radar.nowcast || [];
+    frames = past.concat(now); nPast = past.length;
+    layers = frames.map(f => L.tileLayer(j.host + f.path + "/256/{z}/{x}/{y}/2/1_1.png", {opacity:0, maxNativeZoom:7, maxZoom:12, zIndex:5}).addTo(map));
+    $("sl").max = frames.length - 1; show(Math.max(0, nPast - 1)); play();
+  } catch(e){ $("tl").textContent = "Радар недоступен"; }
+}
+async function init(){
+  let base = [];
+  try {
+    const j = await (await fetch("weather.json?t=" + Date.now(), {cache:"no-store"})).json();
+    base = j.cities.map(c => { const [la,lo] = OM.coords(c); return {name:c.city, lat:la, lon:lo}; });
+  } catch(e){ base = Object.entries(OM.PLACES).map(([n,[la,lo]]) => ({name:n, lat:la, lon:lo})); }
+  places = base; sel = places[0];
+  const q = new URLSearchParams(location.search), ll = (q.get("ll") || "").split(",").map(Number);
+  if (ll.length === 2 && ll[0] && ll[1]) { const name = q.get("n") || "Выбранное место"; sel = places.find(p => p.name === name) || {name, lat:ll[0], lon:ll[1]}; if (!places.includes(sel)) places.unshift(sel); }
+  drawChips();
+  if (typeof L === "undefined") { $("tl").textContent = "Карта не загрузилась"; return; }
+  map = L.map("map").setView([sel.lat, sel.lon], 7);
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {maxZoom:12, attribution:"© OpenStreetMap © CARTO"}).addTo(map);
+  marker = L.circleMarker([sel.lat, sel.lon], {radius:8, color:"#fff", weight:2, fillColor:"#6366f1", fillOpacity:1}).addTo(map);
+  setTimeout(() => map.invalidateSize(), 200);
+  initRadar();
+}
+init();
+</script>
+</body>
+</html>
