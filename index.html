@@ -527,7 +527,7 @@ document.querySelectorAll("#dl .tabs button").forEach(b => b.onclick = () => dlT
 $("dl-go").onclick = async () => { if (!dip) return; dip.prompt(); await dip.userChoice; dip = null; $("dl").classList.remove("on"); };
 $("dl-close").onclick = () => $("dl").classList.remove("on");
 
-$("t-sp").innerHTML = [1,2,3,4,5,6,7,8].map(v => `<button data-v="${v}">×${v}</button>`).join("");
+$("t-sp").innerHTML = [1,2,3,4,5,6,7,8,16,32,64].map(v => `<button data-v="${v}">×${v}</button>`).join("");
 const minskStr = d => d.toLocaleString("sv-SE",{timeZone:"Europe/Minsk"}).replace(" ","T").slice(0,16);
 const spSync = () => document.querySelectorAll("#t-sp button").forEach(b => b.classList.toggle("on", +b.dataset.v===sim.speed));
 $("timeb").onclick = () => { $("t-val").value = minskStr(simNow()); spSync(); $("timem").classList.add("on"); };
