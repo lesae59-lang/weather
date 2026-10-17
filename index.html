@@ -181,7 +181,7 @@ h1{margin:0;font-size:clamp(26px,5vw,40px);letter-spacing:-.02em}
   <button id="del" style="padding:10px;border:0;border-radius:12px;background:transparent;color:#ff8a8a;cursor:pointer">Удалить локацию</button>
 </div></div>
 
-<footer style="max-width:1100px;margin:0 auto;padding:0 20px 40px;color:var(--mut);font-size:13px;line-height:1.6"><h2 style="font-size:15px;margin:0 0 6px">Погода в Минске и Бресте по районам</h2><p>Ожидаемая погода в Минске и по районам Бреста: Центр, Восток, Южный, Киевка. Температура днём и ночью, ветер, прогноз на завтра. Данные вводятся вручную и обновляются автоматически. Сайт можно установить как приложение на ПК, Android и iPhone.</p></footer>
+<footer style="max-width:1100px;margin:0 auto;padding:0 20px 40px;color:var(--mut);font-size:13px;line-height:1.6"><h2 style="font-size:15px;margin:0 0 6px">Погода в Минске и Бресте по районам</h2><p>Ожидаемая погода в Минске и по районам Бреста: Центр, Восток, Южный, Киевка. Температура днём и ночью, ветер, прогноз на завтра. Данные обновляются автоматически каждый час (Open-Meteo), при желании их можно ввести вручную. Сайт можно установить как приложение на ПК, Android и iPhone.</p></footer>
 <script src="core.js"></script>
 <script type="application/json" id="weather-data">{"cities":[{"city":"Минск","cond":"cloudy","temp":8,"night":2,"wind":"4 м/с, западный","note":"Пасмурно, без осадков","updated":""},{"city":"Брест — Центр","cond":"rain","temp":10,"night":4,"wind":"5 м/с, юго-западный","note":"Возьмите зонт","updated":""},{"city":"Брест — Восток","cond":"rain","temp":10,"night":3,"wind":"5 м/с, западный","note":"Небольшой дождь","updated":""},{"city":"Брест — Южный","cond":"partly","temp":11,"night":5,"wind":"3 м/с, южный","note":"Облачно с прояснениями","updated":""},{"city":"Брест — Киевка","cond":"fog","temp":9,"night":3,"wind":"1 м/с, штиль","note":"Утром туман","updated":""}]}</script>
 <script>
@@ -195,6 +195,7 @@ const wspd = d => parseFloat(String(d.wind).replace(",", ".")) || 0;
 const wet = c => c==="rain" || c==="storm";
 function tips(d){
   const t = [];
+  if (d.auto!==false && liveAt && !LIVE[lk(d)]) t.push("⚠ Не обновлено");
   if (wet(d.cond) || wet(d.tcond)) t.push("☂️ Зонт");
   if (d.cond==="snow" || d.tcond==="snow") t.push("🧤 Тепло одевайтесь");
   if (d.temp<=0 || d.night<=0) t.push("🧊 Возможен гололёд");
@@ -222,12 +223,13 @@ function startSound(c,w){
   const wg = noise("lowpass",450,Math.min(.25,.03+w*.02));
   if (w>0) { const lfo = ac.createOscillator(), lg = ac.createGain(); lfo.frequency.value = .15; lg.gain.value = Math.min(.1,.01+w*.008); lfo.connect(lg); lg.connect(wg.gain); lfo.start(); snodes.push(lfo,lg); }
 }
-const LIVE = {}; let liveFail = false, liveAt = null, lastFile = null, pendingUntil = 0;
+const LIVE = {}; const lk = d => { const c = OM.coords(d); return (+c[0]).toFixed(4) + "," + (+c[1]).toFixed(4); }; let liveFail = false, liveAt = null, lastFile = null, pendingUntil = 0;
 async function refreshLive(){
-  const jobs = data.cities.filter(d => d.auto!==false).map(d => ({city:d.city, c:OM.coords(d)}));
-  let ok = 0;
-  await Promise.all(jobs.map(async j => { try { LIVE[j.city] = await OM.get(j.c[0], j.c[1]); ok++; } catch(e){} }));
-  data.cities.forEach(d => { if (d.auto!==false && LIVE[d.city]) OM.apply(d, LIVE[d.city]); });
+  const uniq = {}; data.cities.filter(d => d.auto!==false).forEach(d => { uniq[lk(d)] = OM.coords(d); });
+  const jobs = Object.entries(uniq); let ok = 0;
+  const pull = async c => { try { return await OM.get(c[0], c[1]); } catch(e){ await new Promise(r => setTimeout(r, 1500)); return await OM.get(c[0], c[1]); } };
+  await Promise.all(jobs.map(async ([k,c]) => { try { LIVE[k] = await pull(c); ok++; } catch(e){} }));
+  data.cities.forEach(d => { if (d.auto!==false && LIVE[lk(d)]) OM.apply(d, LIVE[lk(d)]); });
   liveFail = jobs.length > 0 && ok === 0;
   if (ok) liveAt = new Date();
   render();
@@ -240,7 +242,7 @@ function extras(w){
   return '<div class="extras">' + h + "</div>";
 }
 function hourly(d){
-  const w = LIVE[d.city];
+  const w = LIVE[lk(d)];
   if (!w) return '<div class="sub" style="margin-top:18px">' + (d.auto===false ? "Почасовой прогноз доступен для автоматических локаций" : "Загружаю почасовой прогноз…") + "</div>";
   const ic = h => { const k = OM.cond(h.c); return !h.d && k==="clear" ? "🌙" : (!h.d && k==="partly" ? "☁️" : ICON[k]); };
   return extras(w) + '<div class="hours">' + w.hours.map((h,k) => `<div class="h"><b>${k===0?"Сейчас":h.t.slice(11,16)}</b>${h.t.slice(11,13)==="00"?`<small>${h.t.slice(8,10)}.${h.t.slice(5,7)}</small>`:""}<span class="hi">${ic(h)}</span><span class="ht">${Math.round(h.temp)}°</span><span class="hp">${h.p!=null?"💧 "+h.p+"%":""}</span></div>`).join("") + "</div>";
@@ -392,8 +394,9 @@ async function load(){
     if (txt === lastFile) return;
     if (full.classList.contains("on") || document.getElementById("modal").classList.contains("on")) return;
     lastFile = txt; data = JSON.parse(txt);
-    data.cities.forEach(d => { if (d.auto!==false && LIVE[d.city]) OM.apply(d, LIVE[d.city]); });
+    data.cities.forEach(d => { if (d.auto!==false && LIVE[lk(d)]) OM.apply(d, LIVE[lk(d)]); });
     render();
+    if (data.cities.some(d => d.auto!==false && !LIVE[lk(d)])) refreshLive();
   } catch(e){}
 }
 function tick(){
@@ -441,8 +444,7 @@ $("t-close").onclick = () => $("timem").classList.remove("on");
 if (location.hash.startsWith("#k=")) { const t = decodeURIComponent(location.hash.slice(3)); if (t) setTok(t); history.replaceState(null, "", location.pathname + location.search); }
 canEdit = !!tok();
 render();
-load(); setInterval(load, 60000);
-refreshLive(); setInterval(refreshLive, 3600000);
+load().then(refreshLive); setInterval(load, 60000); setInterval(refreshLive, 3600000);
 document.addEventListener("visibilitychange", () => { if (!document.hidden && Date.now() - (liveAt ? +liveAt : 0) > 3600000) refreshLive(); });
 let ds = null;
 full.addEventListener("pointerdown", e => { const h = e.target.closest(".hours"); if (h && e.pointerType==="mouse") { ds = {h, x:e.clientX, l:h.scrollLeft}; h.setPointerCapture(e.pointerId); } });
